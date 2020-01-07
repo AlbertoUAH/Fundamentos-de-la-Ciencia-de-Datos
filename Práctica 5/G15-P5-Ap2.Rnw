@@ -1,0 +1,268 @@
+\documentclass [a4paper] {article}
+\usepackage[hidelinks]{hyperref}
+\usepackage[spanish,activeacute]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{systeme}
+\usepackage{booktabs}
+
+\setlength{\parindent}{0pt}
+\textwidth = 500pt
+\hoffset = -70pt
+
+\title{\textbf{Fundamentos de la Ciencia de Datos Práctica 5}}
+\author{
+	Fernández Díaz, Daniel\\
+	Cano Díaz, Francisco\\
+	Fernández Hernández, Alberto\\
+}
+
+\date{10 de diciembre del 2019}
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+
+\subsection{Algoritmo LOF para detección de \textit{outliers}}
+Con el objetivo de detectar si un valor se encuentra \textbf{alejado con respecto al resto de puntos de un \textit{dataset}, utilizaremos el algoritmo \textit{LOF} (\textit{Local Outlier Factor}), basado en el algoritmo de los K-Vecinos}. Se trata de un algoritmo \textbf{basado en la densidad de los vecinos}, es decir, \textbf{detectar en qué áreas existe una mayor concentración de puntos y en qué zonas existen escasos puntos o una mayor separación entre ellos}.
+
+El algoritmo \textit{LOF} se basa en el concepto de \textbf{densidad local}, es decir, la \textbf{densidad de los \textit{k} vecinos} o \textbf{la distancia típica a la que un punto es alcanzable desde sus \textit{k} vecinos}. De este modo, comparando las densidades locales entre cada uno de sus vecinos, podremos detectar \textbf{regiones con valores de densidad similares, así como puntos con densidades significativamente pequeñas con respecto al resto de vecinos}. En este último caso, los clasificaremos como \textit{outliers}.
+
+\subsubsection{Estructura del algoritmo}
+Sea $k\_distancia(A)$ \textbf{la distancia de un punto A a su \textit{k} vecino más cercano}. Por otro lado, denotaremos como $N_{k}(A)$ al \textbf{conjunto de los \textit{k} vecinos más cercanos al punto A}.
+
+En primer lugar, debemos calcular la \textbf{distancia de alcance} de nuestro punto A a cada uno de sus \textit{k} vecinos más cercanos.
+La distancia de alcance de un punto A a un punto B (\textit{k} vecino de A) es la distancia \textbf{verdadera} entre ambos puntos:
+\begin{equation*}
+distancia\_alcance_{k}(A,B) = max\{k\_distancia(B), d(A,B)\}
+\end{equation*}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=7cm, height=5.5cm]{1}
+\caption{Ejemplo del calculo de la distancia de alcance entre un punto A y un punto B}
+\end{figure}
+Es decir, supongamos que B pertenece a un \textit{cluster}, luego el objetivo es detectar la distancia máxima entre cualquier punto del \textit{cluster de B} con respecto al punto A, detectando de este modo a qué distancia (como máximo) se puede alcanzar el punto A.
+
+A continuación, debemos calcular la \textbf{densidad local}. Este valor permite obtener una estimación de la distancia a partir de la cual un punto puede ser encontrado por sus vecinos \footnote{\url{https://medium.com/@doedotdev/local-outlier-factor-example-by-hand-b57cedb10bd1}}. Para ello, calculamos en primer lugar la \textbf{distancia de alcance media entre el punto A y sus \textit{k} vecinos}:
+\begin{equation*}
+\frac{\sum_{B \in N_{k}(A)}distancia\_alcance_{k}(A,B)}{|N_{k}(A)|}
+\end{equation*}
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=13cm, height=9cm]{2}
+\caption{Ejemplo del calculo de la densidad local entre un punto A y sus \textit{k} vecinos: \{B,C,D\}}
+\end{figure}
+
+Lo que acabamos de calcular es la \textbf{distancia media con la cual el punto A puede alcanzar cualquiera de sus vecinos}. Sin embargo, lo que queremos calcular es justo lo contrario, es decir, la \textbf{distancia desde la cual el punto A pueda ser alcanzado por sus vecinos}. Por lo tanto, la densidad local será la inversa de la media calculada:
+\begin{equation*}
+densidad\_local_{k}(A) = \frac{1}{\frac{\sum_{B \in N_{k}(A)}distancia\_alcance_{k}(A,B)}{|N_{k}(A)|}}
+\end{equation*}
+
+Ya tenemos la distancia media con la cual un punto A puede ser alcanzado por sus vecinos. No obstante, cada uno de los \textit{k} vecinos de A tendrá un conjunto de puntos vecinos, luego debemos calcular la \textbf{la media de densidad de cada uno de sus \textit{k} vecinos en relación con la densidad local de A}, obteniendo de este modo el \textit{Local Outliter Factor} (LOF).
+\begin{equation*}
+LOF_{k}(A) = \frac{\frac{\sum_{B \in N_{k}(A)}densidad\_local_{k}(B)}{|N_{k}(A)|}}{densidad\_local_{k}(A)}
+\end{equation*}
+\begin{itemize}
+  \item LOF(k) $\sim$ 1 Implica que todos los puntos presentan la misma densidad, por lo que no se trata de un \textit{outlier}.
+  \item LOF(k) < 1 implica que la densidad media local del punto A es mayor que la media de densidad local de sus \textit{k} vecinos. Al igual que en el caso anterior, no se trata de un \textit{outlier}.
+  \item LOF(k) > 1 implica que la densidad media local del punto A es menor que la media de densidad local de sus \textit{k} vecinos. En este último caso, se trata de un \textit{outlier}.
+\end{itemize}
+
+\subsubsection{Caso práctico: detección de \textit{outliers} con las estadísticas de tendencias en YouTube}
+En este apartado analizaremos la detección posibles \textit{outliers} sobre vídeos etiquetados como \textbf{tendencias} en \textbf{YouTube}, concretamente en la región de Estados Unidos. \footnote{\url{https://www.kaggle.com/datasnaek/youtube-new}}
+
+En primer lugar, importamos el fichero \textit{csv}:
+<<>>=
+listado.videos <- read.csv("USvideos.csv")
+colnames(listado.videos)
+@
+
+El \textit{dataset} contiene un total de 16 columnas, entre las que destacan:
+\begin{enumerate}
+  \item Número de visualizaciones (\textit{views})
+  \item Número de \textit{me gusta} (\textit{likes})
+  \item Número de \textit{no me gusta} (\textit{dislikes})
+  \item Número de comentarios (\textit{comment\_count})
+\end{enumerate}
+
+Para esta práctica, \textbf{analizaremos los outliers de las columnas anteriores}, realizando todas las posibles combinaciones fila-columna:
+\begin{itemize}
+  \item \textbf{Número de visualizaciones-número de \textit{likes}}
+  \item \textbf{Número de visualizaciones-número de \textit{dislikes}}
+  \item \textbf{Número de visualizaciones-número de comentarios}
+\end{itemize}
+
+Por tanto, eliminaremos el resto de columnas del \textit{dataset}:
+<<>>=
+listado.videos2 <- listado.videos[,c(8,9,10,11)]
+head(listado.videos2)
+# Numero de columnas
+nrow(listado.videos2)
+@
+
+Dado el elevado número de columnas que presenta el \textit{dataframe}, lo reducimos a 10.000:
+<<>>=
+# Reducimos el numero de columnas a 10000
+listado.videos2 <- head(listado.videos2,10000)
+@
+\begin{figure}[h!]
+\centering
+<<fig=T>>=
+par(mfrow=c(2,2))
+plot(listado.videos2$views, main = "Numero de visitas", xlabel = "Fila", 
+ylabel = "Visitas")
+plot(listado.videos2$likes, main = "Numero de \"me gusta\"", xlabel = "Fila", 
+ylabel = "Nº \"Me gusta\"")
+plot(listado.videos2$dislikes, main = "Numero de \"no me gusta\"", xlabel = "Fila", 
+ylabel = "Nº \"No me gusta\"")
+plot(listado.videos2$comment_count, main = "Numero de comentarios", xlabel = "Fila", 
+ylabel = "Comentarios")
+@
+\caption{Columnas del dataset}
+\end{figure}
+
+Una vez reducido el tamaño del \textit{dataframe}, comenzamos con el \textbf{análisis de datos anómalos}. Para ello, \texttt{R} dispone del paquete \textit{DMwR}, el cual contiene la función \textit{lofactor}, que devuelve un vector \textbf{con el factor de \textit{outlier} de cada fila}, dado un \textit{dataframe} de entrada:
+<<>>=
+# Importamos el paquete
+if(!require(DMwR)){
+  install.packages("DMwR")
+  require(DMwR)
+}
+@
+
+Una vez importado, aplicamos el algoritmo \textit{LOF}. Para ello, utilizaremos la función \textit{lofactor}, pasando como parámetro el \textit{dataframe} anterior, así como el número de vecinos utilizado para el cálculo del \textit{Local Outlier Factor} (en nuestro caso elegiremos k = 5):
+<<>>=
+# Numero de vecinos
+k = 5
+outlier.scores <- lofactor(listado.videos2, k)
+
+# Analicemos la salida de uno de los vectores (outliers.scores.views, por ejemplo)
+outlier.scores[1:12]
+@
+
+Como podemos observar, la función devuelve el grado de \textit{outlier} de cada elemento en forma de vector. Analizando el resultado, vemos que existen \textbf{datos anómalos} a lo largo del vector (aquellos cuyo factor \textit{LOF} sean mayores que 1).
+
+A continuación, analizaremos la distribución del factor de \textit{outlier} a lo largo del \textit{dataframe}, mediante un \textbf{gráfico de densidad}:
+
+\begin{figure}[htbp!]
+\centering
+<<fig=T>>=
+plot(density(outlier.scores), main = "Grafica de densidad", 
+xlabel = "Fila", ylabel = "Densidad")
+@
+\caption{Distribucion del factor}
+\end{figure}
+
+\newpage
+En conclusión, \textbf{la mayoría de los valores de cada una de las filas se concentran en torno a un valor \textit{LOF} de 1}. A continuación \textbf{reordenamos} el vector \textit{outlier} en orden ascendente, con el fin de seleccionar aquellos puntos cuyo factor \textit{LOF} sea mayor que 1 (\textit{outliers}).
+Sin embargo, los factores obtenidos en el algoritmo pueden llegar a ser muy difíciles de interpretar. Por ejemplo, en un determinado \textit{dataset}, un valor de 1.1 puede ser considerado un \textit{outlier}, mientras que un factor de 2 no se considera un dato anómalo, dado que no existe un criterio específico para clasificar un punto como \textit{outlier} o no. Por ello, definimos un \textbf{factor de \textit{outlier}}, a partir del cual consideraremos a un punto como \textbf{dato anómalo} (por ejemplo, 1.2):
+
+<<>>=
+# Definimos un factor de outlier
+factor_outlier <- 1.2
+# Utilizaremos la funcion order 
+# que reordena los indices del vector
+index.outliers <- order(outlier.scores[outlier.scores >= factor_outlier], decreasing = T)
+
+# Ejemplo
+head(index.outliers)
+@
+
+Finalmente, \textbf{representamos gráficamente los \textit{outliers}}. Para ello, crearemos un vector cuya longitud sea el número de filas, etiquetando con un \textbf{.} aquellos valores que no sean \textit{outliers}. Por otro lado, marcamos con un \textbf{+} aquellos puntos etiquetados como \textit{outliers}. A continuación, mediante la función \textit{pairs} representamos una matriz con las diferentes correlaciones, mostrando los \textit{outliers} en cada uno de ellos:
+\begin{figure}[htbp!]
+\centering
+<<fig=T>>=
+n <- nrow(listado.videos2)
+# Outliers
+pch <- rep(".", n)
+# Inliers
+pch[index.outliers] <- "+"
+col <- rep("black",n)
+col[index.outliers] <- "red"
+
+pairs(listado.videos2, pch = pch, col = col)
+@
+\caption{Distribucion de los outliers con el algoritmo LOF}
+\end{figure}
+
+\newpage
+\subsection{Extensión del algoritmo \textit{LOF}: \textit{LoOP}}
+Como hemos podido comprobar con el algoritmo \textit{LOF}, no proporciona la suficiente información como para clasificar un dato como \textit{outlier}. En contraposición, existe una variante del algoritmo, denominado \textit{LoOP} (\textit{Local Outlier Probabilities}), desarrollado en la universidad de Munich \footnote{\url{http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.439.2035&rep=rep1&type=pdf}}. 
+Mientras que el algoritmo \textit{LOF} se basa en \textbf{comparar cada una de las distancias entre un punto y sus \textit{k} vecinos}, el algoritmo \textit{LoOP} introduce un nuevo concepto para el cálculo de las distancias, \textbf{la distancia probabilística}.
+
+Para empezar, tomamos un punto \textit{o} como valor a clasificar, así como un conjunto de puntos situados alrededor. Dicho conjunto de puntos lo denotaremos como \textit{S} (siendo \textit{S} la \textbf{distribución normal} de \textit{o}). Asumimos que \textit{o} está situado en el centro del conjunto \textit{S}.
+
+
+En primer lugar, calculamos la \textbf{distancia estándar} del punto \textit{o} al resto de puntos del conjunto \textit{S} (similar al cálculo de la \textbf{desviación estándar}):
+\begin{equation*}
+\sigma(o,S) = \sqrt{\frac{\sum_{s \in S}{d(o,s)^2}}{|S|}}
+\end{equation*}
+
+Para el cálculo de la distancia, partimos del supuesto de que los puntos del conjunto \textit{S} se \textbf{distribuyen normalmente} alerededor de \textit{o}, por lo que debemos tener esto muy en cuenta a la hora de determinar el conjunto \textit{S}. Por ello, se pretende obtener el conjunto \textit{S} por medio del \textit{k} vecino más cercano situado alrededor de \textit{o}. De esta manera, el hecho de asumir que \textit{S} se encuentra centrado alrededor de \textit{o} es algo razonable.
+
+Como consecuencia, definimos la \textbf{distancia probabilística} como el producto de la distancia estándar por un factor $\lambda$, obteniendo de este modo la \textbf{densidad aproximada del punto \textit{o}}:
+\begin{equation*}
+pdist(\lambda,o,S) = \lambda \sigma(o,S)
+\end{equation*}
+Donde la $\lambda$ es un \textbf{factor de normalización} (comprendido entre 1 y 3).
+A continuación, calculamos el valor \textit{PLOF} (\textit{Probabilistic Local Outlier Factor}), dado el punto \textit{o} y el conjunto de los \textit{k} vecinos más cercanos a \textit{o} ($N_{k}$):
+\begin{equation*}
+PLOF_{\lambda,k}(o) = \frac{pdist(\lambda,o,N_{k}(o))}{E_{s \in N_{k}(o)}[pdist(\lambda,s,N_{k}(s))]} - 1
+\end{equation*}
+Donde E es la \textbf{estimación de la densidad de todos los puntos del conjunto \textit{S} con respecto a los \textit{k} vecinos más cercanos a \textit{o}}.
+Finalmente, obtenemos el valor \textit{LoOP}:
+\begin{equation*}
+LoOP_{S}(o) = max(0,erf(\frac{PLOF_{\lambda,S(o)}}{\lambda \sqrt{E[(PLOF)^2]} \sqrt{2}}))
+\end{equation*}
+Donde $erf$ es la \textbf{función error de Gauss}. El resultado final es un valor probabilístico comprendido entre 0 y 1: un valor cercano a 0 implica que el punto se sitúa en una región densa (con un gran número de puntos alrededor), por lo que hay menos probabilidades de que se trate de un \textit{outlier}. Por el contrario, si el valor es más cercano a 1, es mucho más probable de que se trate de un \textit{outlier}.
+
+A continuación, vamos a analizar la distribución de \textit{outliers} utilizando el mismo \textit{dataset} que en el apartado anterior. Para ello, \texttt{R} dispone del paquete \textbf{DDoutlier} \footnote{\url{https://cran.r-project.org/web/packages/DDoutlier/DDoutlier.pdf}} el cual contiene la función \textit{LOOP}, que tendrá como parámetros:
+\begin{itemize}
+  \item \textit{Dataframe} a analizar
+  \item Número \textit{k} de vecinos (Al igual que en el ejemplo anterior, lo establecemos a 5)
+  \item Factor $\lambda$ de normalización (por defecto está establecido a 3)
+\end{itemize}
+<<>>=
+# Instalamos el paquete
+if(!require(DDoutlier)){
+  install.packages("DDoutlier")
+  require(DDoutlier)
+}
+k = 5
+outlier.scores.loop <- LOOP(listado.videos2, k = 5)
+
+# Analicemos el resultado
+head(outlier.scores.loop, 12)
+@
+
+Como podemos comprobar, el algoritmo devuelve un vector de valores comprendidos entre 0 y 1 (cuanto más cercano esté de 1, \textbf{más probabilidades habrá de que se trate de un \textit{outlier}}).
+Una vez ejecutado el algoritmo, comparamos el número de \textit{outliers} obtenidos utilizando el algoritmo \textit{LOF} (para valores mayores que 1) con el número de datos anómalos obtenidos con \textit{LOOP} (valores mayores o iguales a 0.5, ya que estos tienen más posibilidades de tratarse de \textit{outliers}):
+<<>>=
+# Total de outliers del algoritmo LOF
+length(outlier.scores[outlier.scores > 1])
+
+# Total de outliers del algoritmo LoOP
+length(outlier.scores.loop[outlier.scores.loop >= 0.5])
+@
+
+En conclusión, el número de \textit{outliers} obtenidos con el algoritmo \textit{LoOP} es \textbf{significativamente menor con respecto al número de \textit{outliers} obtenidos con el algoritmo LoOP}:
+\begin{figure}[htbp!]
+\centering
+<<fig=T>>=
+index.outliers.loop <- order(outlier.scores.loop[outlier.scores.loop >= 0.5], decreasing = T)
+n <- nrow(listado.videos2)
+pch <- rep(".", n)
+pch[index.outliers.loop] <- "+"
+col <- rep("black",n)
+col[index.outliers.loop] <- "red"
+
+pairs(listado.videos2, pch = pch, col = col)
+@
+\caption{Distribucion de los outliers con el algoritmo LoOP}
+\end{figure}
+\end{document}

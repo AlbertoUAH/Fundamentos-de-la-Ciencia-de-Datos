@@ -1,0 +1,588 @@
+\documentclass [a4paper] {article}
+\usepackage[hidelinks]{hyperref}
+\usepackage[spanish,activeacute]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{systeme}
+\usepackage{booktabs}
+
+\setlength{\parindent}{0pt}
+\textwidth = 500pt
+\hoffset = -70pt
+
+\title{\textbf{Fundamentos de la Ciencia de Datos Práctica 4}}
+\author{
+	Fernández Díaz, Daniel\\
+	Cano Díaz, Francisco\\
+	Fernández Hernández, Alberto\\
+}
+
+\date{19 de noviembre del 2019}
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+
+\subsection{Apartado 2.2:  Análisis del número de \textit{clusters} óptimos. Comparación K-Means y \textit{Hierarchical Clustering}. Algoritmo DBSCAN}
+\subsubsection{K-Means}
+Vamos a realizar una modificación del ejercicio de clase, en el \textbf{visualizaremos puntos de acceso \textit{Wi-Fi}}, agrupando los diferentes puntos mediante \textit{K-Means}. Para ello utilizaremos un \textit{dataset} geográfico con los puntos de acceso \textit{Wi-Fi} de la ciudad de Nueva York. \footnote{\url{https://data.cityofnewyork.us/api/views/varh-9tsp/rows.csv?accessType=DOWNLOAD}} Para visualizar los datos, utilizaremos la librería \textit{dplyr}, el cual nos permite manipular un \textit{dataframe} de forma similar a una consulta \texttt{SQL}.
+\begin{footnotesize}
+<<>>=
+# Incluimos la libreria dplyr
+if(!require(dplyr)){
+  install.packages("dplyr")
+  require(dplyr)
+}
+# Preparamos el dataframe
+newyork <- read.csv("NYC_Free_Public_WiFi_03292017.csv")
+# Similar a la consulta SQL:
+# SELECT * FROM newyork LIMIT 5
+newyork %>% head(5)
+@
+\end{footnotesize}
+
+El \textit{dataframe} contiene, entre otros campos, los siguientes atributos:
+\begin{enumerate}
+  \item \textit{BORO}: barrio de la ciudad (ejemplo: BK = \textit{Brooklyn}).
+  \item \textit{the\_geom}: coordenadas de latitud y longitud.
+  \item \textit{OBJECTID}: id del punto de conexión.
+  \item \textit{TYPE}: tipo de red (\textit{free, limited-free...})
+  \item \textit{PROVIDER}: nombre del proveedor.
+  \item \textit{NAME}: nombre de la red.
+  \item \textit{LOCATION}: localización.
+  \item \textit{LAT}: latitud.
+  \item \textit{LON}: longitud.
+\end{enumerate}
+
+Para aplicar el algoritmo \textit{K-Means}, utilizaremos únicamente los atributos \textit{LAT} y \textit{LON}:
+<<>>=
+newyork.df <- data.frame(newyork$LAT, newyork$LON)
+@
+
+Una vez tengamos estas columnas, vamos a determinar el número de \textit{clusters} óptimos. Para ello vamos a trabajar con dos algoritmos básicos:
+\begin{itemize}
+  \item \textit{Elbow Method}
+  \item \textit{Average Silhouette Method}
+\end{itemize}
+
+\paragraph{Elbow Method}: 
+El objetivo de este algoritmo es \textbf{minimizar la suma de los cuadrados de las distancias de cada punto con respecto a su cluster correspondiente}. Supongamos que queremos comparar cuál es el número óptimo de \textbf{centroides} entre 1 y \textit{k}:
+
+\begin{enumerate}
+  \item \textit{Por cada k iteración, ejecutamos el algoritmo kmeans con un número k de clusters}
+  \item \textit{A continuación, calculamos la \textbf{suma de los cuadrados de las distancias de cada punto con su cluster respectivo}}
+\end{enumerate}
+
+Una vez realizada la iteración de 1 a \textit{k}, elegimos el número de clusters cuya distancia sea mínima, es decir, el objetivo será \textbf{minimizar la suma de los cuadrados de las distancias}.
+
+Con el dataset anterior, vamos a determinar el número óptimo de clusters, comprendido entre 1 y 20. Para ello creamos inicialmente una función para el cálculo de la suma del cuadrado de las distancias, al que llamaremos \textit{wss}, del inglés \textit{within-cluster sum of squares}; a continuación ejecutamos el algoritmo \textit{kmeans} con un número \textit{k} de \textit{clusters}, devolviendo la columna \textit{tot.withinss}, la cual contiene la \textbf{suma total de los cuadrados de cada punto a su \textit{cluster}}:
+
+<<>>=
+# Funcion para el calculo  
+wss <- function(k){
+  # DataFrame = newyork.df
+  # nstart = numero de conjuntos que se crean inicialmente
+  # Al ser aleatorio este campo por defecto, vamos a establecer
+  # un valor determinado
+  kmeans(newyork.df, k, nstart = 10)$tot.withinss
+}
+@
+
+A continuación, creamos un vector de 1 a \textit{k} clusters.
+
+<<>>=
+k.values <- 1:20
+@
+
+Para ejecutar el algoritmo \textit{kmeans} para cada valor de \textit{k} vamos a utilizar una función denominada \textit{map}, la cual nos permite evaluar una misma función para diferentes parámetros, a través de un vector. Esta función se encuentra incluida en el paquete \textit{purrr}, por lo que debemos instalarla y añadirla de forma previa:
+
+<<>>=
+# Incluimos el paquete purrr
+if(!require(purrr)){
+  install.packages("purrr")
+  require(purrr)
+}
+
+# Ejecutamos map, aplicando la funcion k.values 
+# sobre un vector k de centroides. Como el resultado
+# sera de tipo double, existen variantes de la funcion
+# map como map_dbl, la cual devuelve la solucion en
+# formato double.
+wss.values <- map_dbl(k.values,wss)
+@
+
+Una vez ejecutado el algoritmo, mostramos los resultados por pantalla, mostrando \textbf{la suma total del cuadrado de las distancias en función del número de \textit{clusters}}:
+
+\begin{figure}[h!]
+\centering
+<<fig=T>>=
+plot(k.values, wss.values, type = "b", pch = 19, frame = F, 
+xlab = "Numero k de clusters (1:20)", 
+ylab = "Suma del cuadrado de las distancias")
+@
+\caption{Elbow Method}
+\end{figure}
+
+\newpage
+Afortunadamente, el método \textit{Elbow} ya está implementado en una función, denominada \textit{fviz\_nbclust}, disponible en el paquete \textit{factoextra}:
+<<>>=
+if(!require(factoextra)){
+  install.packages("factoextra")
+  library(factoextra)
+}
+@
+\begin{figure}[h!]
+\centering
+<<fig=T>>=
+# Ejecutamos la funcion fviz_nbclust
+fviz_nbclust(newyork.df, kmeans, method = "wss", k.max = 20)
+@
+\caption{Elbow Method}
+\end{figure}
+
+\newpage
+Como podemos observar, \textbf{la suma del cuadrado de las distancias se reducen a partir de \textit{k = 11} centroides hasta llegar al mínimo con \textit{k = 20}}.
+
+Sin embargo, el hecho de escoger un mayor número de \textit{clusters} no implica que la clasificación sea más óptima. Por ello, vamos a realizar un segundo análisis:
+
+\paragraph{Average Silhouette}:
+Este algoritmo se encarga de \textbf{medir el grado de calidad de un \textit{cluster}}, es decir si un objeto ha sido bien clasificado o no:
+
+En primer lugar, \textbf{escogemos un punto \textit{i} perteneciente al \textit{cluster $C_i$}}
+
+\begin{equation*}
+i \in C_i
+\end{equation*}
+
+calculamos la \textbf{distancia media entre el punto \textit{i} elegido y el resto de puntos pertenecientes al mismo \textit{cluster}}:
+
+\begin{equation*}
+a(i) = \frac{1}{C_i-1}\sum_{i\neq j , j \in C_i}^{}d(i,j)
+\end{equation*}
+
+Donde $C_i$ es el número de elementos contenidos en el \textit{cluster}. En la ecuación anterior, restamos \textit{$C_i$ - 1} porque no tenemos en cuenta la distancia al elemento \textit{i}, es decir, \textit{d(i,i)}. Por tanto, \textit{a(i)} permite medir el grado de pertenencia del elemento \textit{i} al \textit{cluster}.
+
+A continuación, con ese mismo punto \textit{i} calculamos \textbf{la distancia media del punto \textit{i} a todos los puntos \textit{j} perteneciente a otro \textit{cluster} $C_k$, donde $C_j \neq C_i$}:
+
+\begin{equation*}
+\frac{1}{C_k}\sum_{j \in C_k}^{}d(i,j)
+\end{equation*}
+
+Como tenemos varios \textit{clusters}, obtendremos \textbf{el mínimo de entre todos los \textit{clusters}}:
+
+\begin{equation*}
+b(i) = \min \frac{1}{C_k}\sum_{j \in C_k}^{}d(i,j)
+\end{equation*}
+
+Por tanto, el \textit{cluster} con la menor media será el \textbf{\textit{cluster} vecino}.
+Finalmente, para medir el grado de pertenencia calculamos:
+
+\begin{equation*}
+s(i) = \frac{b(i) - a(i)}{max\{a(i),b(i)\}}
+\end{equation*}
+
+Analicemos los posibles resultados:
+\begin{itemize}
+  \item \textit{s(i) = 0}: \textbf{significa que el dato se encuentra en la frontera entre dos \textit{clusters}}.
+  \item \textit{1 - a(i)/b(i)}: \textbf{significa que el dato se encuentra bien clasificado}, es decir, la media de las distancias del punto \textit{i} a los elementos del \textit{cluster} inicial (\textbf{a(i)}) es \textbf{menor} que la distancia media de \textit{i} al siguiente cluster más cercano (\textbf{b(i)}), lo cual indica que \textit{i} se ha clasificado correctamente.
+  \item \textit{1 - b(i)/a(i)}: \textbf{significa que el dato se encuentra mal clasificado}, es decir, la media de las distancias del punto \textit{i} a los elementos del \textit{cluster} vecino (\textbf{b(i)}) es \textbf{menor} que la distancia media de \textit{i} al siguiente cluster original (\textbf{b(i)}), es decir, se encuentra más cerca del \textit{cluster} vecino que del original.
+\end{itemize}
+
+A continuación, vamos a analizar el grado de clasificación utilizando el algoritmo anterior, utilizando la función \textit{fviz\_nbclust} en la que cambiamos el método a \textit{silhouette}:
+\begin{figure}[h!]
+\centering
+<<fig=T>>=
+fviz_nbclust(newyork.df, kmeans, method = "silhouette", k.max = 20)
+@
+\end{figure}
+
+\newpage
+Analizando la gráfica anterior, observamos que \textit{k} = 7 es el \textbf{número óptimo de \textit{clusters}}, ya que presenta el mayor \textit{s(i)}.
+
+Una vez determinado el número de \textit{clusters}, comenzamos con el análisis de clasificación. En primer lugar, ejecutamos el algoritmo \textit{kmeans}:
+
+<<>>=
+# Numero de clusters = 7
+clasificacion.ns <- kmeans(newyork.df, 7)
+@
+
+A continuación, calculamos el valor medio de cada \textit{cluster}. Para ello, agrupamos los datos en función del \textit{cluster} al que pertenezca (para ello, la funcion \textit{kmeans} dispone de una columna, denominada \textit{cluster} que indica a qué conjunto pertenece cada dato):
+<<>>=
+aggregate(newyork.df,by=list(clasificacion.ns$cluster),FUN=mean)
+@
+
+Una vez calculada la media de cada conjunto, añadimos al \textit{dataframe} original una nueva columna con el \textit{cluster} al que pertenece cada dato:
+
+<<>>=
+newyork.df <- data.frame(newyork.df, clasificacion.ns$cluster)
+# Mostrmoas las 10 primeras filas
+head(newyork.df,10)
+sapply(newyork.df, class)
+@
+
+Sin embargo, el tipo de dato de la columna \textit{cluster} es \textit{integer}, por lo que debemos cambiarlo a \textit{factor}:
+
+<<>>=
+newyork.df$clasificacion.ns.cluster <- as.factor(newyork.df$clasificacion.ns.cluster)
+@
+
+Finalmente, vamos a representar gráficamente los \textit{clusters}. Para ello, utilizaremos el paquete \textit{ggplot2}. \footnote{\url{https://ggplot2.tidyverse.org}}
+\textit{ggplot2} forma parte de un conjunto de subpaquetes del paquete \textit{tidyverse} para análisis y manipulación de datos. En concreto, este paquete proporciona herramientas para una mejor visualización de la información, basándose en la \textbf{gramática de gráficos}, es decir, que cualquier gráfico pueda expresarse a partir de la combinación de:
+\begin{itemize}
+  \item \textbf{Un conjunto de datos}
+  \item \textbf{Un sistema de coordenadas}
+  \item \textbf{Un conjunto de herramientas para representar visualmente los datos, denominados \textit{geoms} (puntos, líneas, líneas discontínuas etc.)}
+\end{itemize}
+
+Veamos un ejemplo con el \textit{dataframe} anterior: en primer lugar instalamos y cargamos el paquete \textit{ggplot2}:
+<<>>=
+if(!require(ggplot2)){
+  install.packages("ggplot2")
+  require(ggplot2)
+}
+@
+
+Para este ejemplo, queremos \textbf{visualizar las coordenadas de latitud (LAT) y longitud (LON) del dataframe \textit{newyork.df}}:
+\begin{itemize}
+  \item \textbf{Un conjunto de datos}: en nuestro caso el \textit{dataframe} \textit{newyork.df}
+  \item \textbf{Un sistema de coordenadas}: utilizaremos el eje X para la columna de longitud y el eje Y para las coordenadas de latitud. Para indicar los ejes, \textit{ggplot} dispone de un campo denominado \textit{aes} en el que podremos asociar columnas con cada uno de los ejes. 
+  \item \textbf{Un conjunto de herramientas para representar visualmente los datos}: en este caso, utilizaremos \textbf{puntos} para representar cada uno de los datos. \textit{ggplot} dispone del campo \textit{geom\_point} con el que podremos representar cada fila del \textit{dataframe} original como un punto en el espacio.
+\end{itemize}
+
+Como queremos representar cada fila en función del conjunto al que pertenece, añadimos el campo \textit{color} en el que representará cada fila con un color \textbf{en función del \textit{cluster} al que pertenezca}:
+
+\begin{figure}[h!]
+\centering
+<<fig=T, width = 6, height= 6>>=
+# Datos a representar: newyork.df
+# Coordenadas:
+# -Eje X ==> LON
+# -Eje Y ==> LAT
+# Representacion de los datos: por puntos
+ggplot(newyork.df, aes(x=newyork.LON, y=newyork.LAT)) + 
+geom_point(aes(color = newyork.df$clasificacion.ns.cluster)) + 
+scale_color_discrete(name = "Regiones") + labs(x = "Longitud", y = "Latitud")
+@
+\end{figure}
+
+Sin embargo, una mejor representación sería con el mapa de la ciudad de Nueva York. Para ello \textit{GitHub} \footnote{\url{https://github.com/zachcp/nycmaps}} dispone de una librería de la comunidad que permite representar gráficamente el mapa de la ciudad de Nueva York, utilizando el paquete \textit{maps} \footnote{\url{https://cran.r-project.org/web/packages/maps/maps.pdf}} de \texttt{R}, que permite proyectar diferentes regiones del globo.
+\newpage
+Para proyectar el mapa de la ciudad, debemos instalar dicho paquete. Una vez descargada, la añadimos y mediante la función \textit{map\_data} seleccionamos de la base de datos geográfica la región de Nueva York \textit{nyc}. Finalmente, mediante la función \textit{ggplot} representamos gráficamente los \textit{clusters} sobre el mapa de la región (para ello, \textit{ggplot} dispone de la función \textit{geom\_map} que permite proyectar un conjunto de datos sobre un mapa):
+\begin{figure}[h!]
+\centering
+<<fig=T, witdth = 30, height = 5>>=
+# Instalamos el paquete
+if(!require(nycmaps)){
+  install.packages("C:/tmp/nycmaps.zip")
+  # Lo importamos
+  library(nycmaps)
+}
+
+# Importamos la plantilla de la ciudad de
+# Nueva York
+nyc <- map_data("nyc")
+
+## ggtitle para incluir un titulo al grafico
+## theme para situar la leyenda en la parte inferior
+ggplot() + geom_map(data=nyc, map=nyc, aes(map_id=region)) + 
+geom_point(data = newyork.df, aes(x = newyork.LON, 
+y = newyork.LAT, colour = newyork.df$clasificacion.ns.cluster), 
+alpha = .5) + scale_fill_continuous(guide = guide_legend()) + 
+ggtitle("Distribucion de los puntos Wi-Fi") + 
+theme(legend.position = "bottom") + 
+scale_color_discrete(name = "Regiones") + 
+labs(x = "Longitud", y = "Latitud")
+@
+\end{figure}
+
+\newpage
+El mapa anterior nos muestra la distribución de los puntos \textit{Wi-Fi} situados a lo largo de la ciudad. Por ejemplo, vemos como existen regiones como la 7 (\textbf{Manhattan}), la 5 (\textbf{Bronx}), donde existe un mayor número de puntos de acceso \textit{Wi-Fi} gratuitos, debido a que se trata de zonas con de mayor actividad, mientras que hay regiones como la 1 (\textbf{Staten Island}) donde existe un menor número de puntos de acceso.
+
+\subsubsection{Hierarchical Clustering}
+Una de las principales diferencias del agrupamiento jerárquico (\textit{Hierarchical Clustering}) con respecto a \textit{K-Means} es que no se agrupan los datos en torno a un determinado número de centroides, sino que incialmente cada elemento es considerado como un \textbf{centroide}. Posteriormente, se identifica aquella pareja de centroides con la menor distancia, combinándolos y formando un único \textit{cluster}, repitiendo este proceso hasta que todos los datos estén contenidos dentro de un mismo \textit{cluster}.
+
+Para el agrupamiento jerárquico, \texttt{R} dispone de la función \textit{hclust}, disponible en el paquete \textit{stats}. \footnote{\url{https://www.rdocumentation.org/packages/stats/versions/3.6.1/topics/hclust}}
+Según la definición que utilicemos para medir la proximidad entre \textit{clusters}, existen distintos tipos de clasificación jerárquica:
+
+\begin{itemize}
+  \item \textbf{MIN o \textit{Single}}: define la proximidad entre dos clusters como \textbf{la distancia existente entre los dos puntos más cercanos de los dos \textit{clusters}}, generando \textit{clusters} contiguos en los que cada punto está más cerca al menos a un punto en su \textit{cluster} que a cualquier otro punto en otro \textit{cluster}
+  \item \textbf{MAX o \textit{Complete}}: define la proximidad entre dos \textit{clusters} como la \textbf{distancia que hay entre los dos puntos más lejanos de los dos \textit{clusters}}
+  \item \textbf{Group Average}: define la proximidad entre dos \textit{clusters} como la \textbf{media de distancias entre todas las parejas que se puedan formar, con puntos de los dos \textit{clusters}}.
+\end{itemize}
+
+Para indicar el tipo de algoritmo de clasificación, \textit{hclust} dispone de un campo denominado \textit{method} con el cual podremos modificar el tipo de algoritmo. Por defecto, utiliza el método \textit{complete}, es decir, el algoritmo \textbf{MAX}. Sin embargo, vamos a realizar un pequeño estudio comparativo de los tres algoritmos anteriores.
+
+En primer lugar, eliminamos del dataframe \textit{newyork.df} la columna \textit{clasificacion.ns.cluster}, utilizada previamente para el \textit{K-Means}:
+
+<<>>=
+newyork.df.2 <- newyork.df[,-3]
+@
+
+Para ejecutar la función \textit{hclust} debemos pasar como parámetro las \textbf{distancias entre todos los puntos del \textit{dataframe}}. Para ello utilizaremos la función \textit{dist}, la cual nos devuelve una matriz con las distancias euclídeas, por defecto:
+
+<<>>=
+# Ejecutamos el algoritmo de agrupacion jerarquica
+clustering <- hclust(dist(newyork.df.2))
+summary(clustering)
+@
+\newpage
+De los valores resultantes, debemos destacar el campo \textit{merge}:
+<<>>=
+head(clustering$merge,10)
+@
+
+Tras ejecutar el algoritmo, \textit{hclust} nos devuelve, entre otros campos, una matriz denominada \textit{merge}, la cual describe el \textbf{proceso de clusterización de los elementos}: cada fila \textit{i} describe el proceso de \textit{clusterización} durante la iteración \textit{i} del algoritmo. Por cada fila, si existe un elemento \textit{j} negativo, significa que dicho valor fue \textit{clusterizado} durante la iteración \textit{j} del algoritmo, mientras que si el elemento \textit{j} es positivo, implica que fue \textit{clusterizado} en la fase previa.
+
+Una forma de poder observar el proceso de agrupación sería ejecutando \textit{plot} sobre la función \textit{hclust}, el cual nos muestra un árbol cuyos nodos hoja son cada una de las fials del \textit{dataframe} original. Para una mejor representación del árbol, vamos a sustituir cada pareja de valores \textbf{latitud-longitud} por una lista de puntos:
+
+<<>>=
+# cex: indica las dimensiones de cada punto (0.2 significa que
+# debe imprimirse un 20% mas pequeño con respecto al tamaño original)
+
+# pch: indica el tipo de figura (19: punto)
+# color: color de cada punto
+listaPuntos <- list(lab.cex = 0.2, pch = c(NA,19), cex = 0.2, col = "blue")
+@
+
+Una vez definida la lista de puntos, ejecutamos la función \textit{plot}. Es muy importante redefinir la variable \textit{clustering} al tipo de dato \textbf{dendrograma} (\textit{dendrogram}), un diagrama en forma de árbol que organiza los datos por subcategorías que, a su vez, se dividen en otros hasta llegar a un nodo raíz:
+\begin{figure}[h!]
+\centering
+<<fig=T, witdth = 30, height = 5>>=
+plot(as.dendrogram(clustering), ylab = "Height", nodePar = listaPuntos, leaflab = "none")
+@
+\end{figure}
+\newpage
+Finalmente, para realizar la representación gráfica mediante \textit{ggplot} necesitamos podar el árbol anterior. Para ello, disponemos de la función \textit{cutree} con la que podremos realizar la poda del árbol, devolviendo una matriz en la que divide los datos en torno a \textit{k} centroides. En nuestro caso utilizaremos el número óptimo de centroides: 7.
+<<>>=
+# Podamos el arbol, agrupando los datos
+# en torno a 7 centroides
+clusters <- cutree(clustering, k = 7)
+
+# Mostramos los 100 primeros elementos
+head(clusters, 100)
+@
+
+Como podemos observar, cada dato queda asociado con un \textit{cluster}.
+A continuación, vamos a realizar una comparación del número de elementos agrupados en torno a cada \textit{cluster} entre el \textit{K-Means} y agrupación jerárquica con el algoritmo \textbf{MAX}:
+\begin{footnotesize}
+<<>>=
+for(i in 1:7){
+   cat("Numero de elementos en el centroide ",i," para K-Means: ", sum(newyork.df$clasificacion.ns.cluster == i), "\n")
+   cat("Numero de elementos en el centroide ",i," para agrupación jerárquica con MAX: ", sum(clusters == i), "\n\n")
+}
+@
+\end{footnotesize}
+Como podemos observar, mientras que en el \textit{K-Means} los elementos se concentran en torno a los últimos centroides, la agrupación jerárquica con \textbf{MAX} concentra los elementos en torno a los primeros centroides.
+
+Como existen varios algoritmos de clasificación jerárquica, vamos a realizar un estudio comparativo del número de elementos agrupados en torno a cada cluster utilizando los siguientes algoritmos:
+\begin{itemize}
+  \item \textit{K-Means}
+  \item Agrupación jerárquica con \textbf{MIN}
+  \item Agrupación jerárquica con \textbf{MAX}
+  \item Agrupación jerárquica con \textit{average}
+\end{itemize}
+
+<<>>=
+# Paso 1: Aplicamos agrupacion jerarquica
+# para cada algoritmo: MAX, MIN, avg
+clustering.single <- hclust(dist(newyork.df.2), method = "single")
+clustering.complete <- hclust(dist(newyork.df.2))
+clustering.average <- hclust(dist(newyork.df.2), method = "average")
+
+# Paso 2: Una vez aplicado el algoritmo, realizamos
+# el proceso de poda con 7 centroides con cutree()
+clusters.single <- cutree(clustering.single, k = 7)
+clusters.complete <- cutree(clustering.complete, k = 7)
+clusters.average <- cutree(clustering.average, k = 7)
+
+# Paso 3: almacenamos el numero de elementos en cada cluster
+# para cada algoritmo
+vector.kmeans <- c()
+vector.single <- c()
+vector.complete <- c()
+vector.average <- c()
+@
+\newpage
+<<>>=
+# Para ello utilizaremos un bucle for que vaya concatenando
+# en un vector el numero de elementos existentes en el cluster i
+# para cada algoritmo
+for(i in 1:7){
+   vector.kmeans <- c(vector.kmeans, sum(newyork.df$clasificacion.ns.cluster == i))
+   vector.single <- c(vector.single, sum(clusters.single == i))
+   vector.complete <- c(vector.complete, sum(clusters.complete == i))
+   vector.average <- c(vector.average, sum(clusters.average == i))
+}
+vector.kmeans
+
+vector.single
+
+vector.complete
+
+vector.average
+@
+
+Como podemos observar, obtenemos \textbf{el número de elementos para cada cluster en función del tipo de algoritmo}. Para una mejor comparación, vamos a representar gráficamente los vectores mediante la función \textit{barplot}, disponible en el paquete \textit{graphics}:
+\begin{figure}[h!]
+\centering
+<<fig=T, witdth = 300, height = 5>>=
+# Previamente unimos todos los vectores anteriores, creando un dataframe
+barplot(cbind(vector.kmeans,vector.single,vector.complete,vector.average), 
+xlab = "algoritmo de clasificacion", ylab = "numero de elementos", col = rainbow(7), 
+beside = T, cex.names = 0.8)
+@
+\end{figure}
+
+\newpage
+Analizando la gráfica anterior, podemos extraer las siguientes conclusiones:
+\begin{itemize}
+  \item \textbf{El algoritmo \textit{K-Means} concentra un mayor porcentaje de sus elementos en torno a los \textit{clusters} centrales y finales}.
+  \item Por el contrario, \textbf{el método de agrupación jerárquica con el algoritmo MIN (\textit{single}) concentra prácticamente todos los elementos en torno al primer \textit{cluster}. Esto puede deberse a que durante las primeras etapas del proceso de \textit{clusterización}, los elementos se han ido concentrando en torno al primer conjunto, quedando elementos finales cuya distancia entre dichos nodos es menor que la distancia al primer \textit{cluster}, creando por ello nuevos conjuntos}.
+  \item Por otro lado, \textbf{utilizando el algoritmo MAX (\textit{complete}), hay una mayor dispersión de los datos con respecto al anterior algoritmo, situándose en torno a los \textit{clusters} intermedios}.
+  \item Por último, \textbf{el algoritmo \textit{average} sitúa la mayoría de los datos en torno al segundo \textit{cluster}}.
+\end{itemize}
+\newpage
+Mediante la función \textit{ggplot}, podemos observar en el mapa la clasificación de los datos en función del algoritmo:
+\begin{figure}[h!]
+\centering
+<<fig=T, echo = false, witdth = 500, height = 5>>=
+if(!require(ggpubr)){
+  install.packages("ggpubr")
+  require(ggpubr)
+}
+
+require(dplyr)
+# K-Means
+# Ordenamos el dataframe por la cloumna cluster
+p1 <- ggplot() + geom_map(data=nyc, map=nyc, aes(map_id=region), fill="#7f7f7f") + geom_point(data = newyork.df, aes(x = newyork.LON, y = newyork.LAT), colour = newyork.df$clasificacion.ns.cluster, alpha = .5) + labs(x = "Longitud", y = "Latitud")
+
+# Hierarchical Clustering con MIN
+newyork.df.aux <- data.frame(newyork.df.2, clusters.single)
+newyork.df.aux$clusters.single <- as.factor(newyork.df.aux$clusters.single)
+
+p2 <- ggplot() + geom_map(data=nyc, map=nyc, aes(map_id=region), fill="#7f7f7f") + geom_point(data = newyork.df.aux, aes(x = newyork.LON, y = newyork.LAT), colour = newyork.df.aux$clusters.single, alpha = .5) + labs(x = "Longitud", y = "Latitud")
+
+# Hierarchical Clustering con MAX
+newyork.df.aux <- data.frame(newyork.df.2, clusters.complete)
+newyork.df.aux$clusters.complete <- as.factor(newyork.df.aux$clusters.complete)
+
+p3 <- ggplot() + geom_map(data=nyc, map=nyc, aes(map_id=region), fill="#7f7f7f") + geom_point(data = newyork.df.aux, aes(x = newyork.LON, y = newyork.LAT), colour = newyork.df.aux$clusters.complete, alpha = .5) + labs(x = "Longitud", y = "Latitud")
+
+# Hierarchical Clustering con average
+newyork.df.aux <- data.frame(newyork.df.2, clusters.average)
+newyork.df.aux$clusters.average <- as.factor(newyork.df.aux$clusters.average)
+
+p4 <- ggplot() + geom_map(data=nyc, map=nyc, aes(map_id=region), fill="#7f7f7f") + geom_point(data = newyork.df.aux, aes(x = newyork.LON, y = newyork.LAT), colour = newyork.df.aux$clusters.average, alpha = .5) + labs(x = "Longitud", y = "Latitud")
+
+ggarrange(p1, p2, p3, p4,
+          labels = c("K-Means", "MIN", "MAX", "Average"),
+          ncol = 2, nrow = 2,
+          font.label = list(size = 8))
+@
+\end{figure}
+
+\subsubsection{DBSCAN}
+Por último, vamos a tratar con uno de los algoritmos de clasificación más citados y utilizados: \textbf{DBSCAN}, de las siglas en inglés \textit{Density-based spatial clustering of applications with noise}. Se trata de un algoritmo de clasificación \textbf{basado en la densidad}, es decir, se basa en detectar \textbf{áreas en las que existen una mayor concentración de puntos}, así como \textbf{áreas vacías o con escasos puntos}. Aquellos puntos que no se concentran en torno a un \textit{cluster} será considerados \textbf{ruido}.
+
+Supongamos que tenemos un conjunto de puntos a ser clasificados. Mediante el algoritmo \textbf{DBSCAN}, los puntos se pueden clasificar como:
+\begin{itemize}
+  \item \textbf{Puntos núcleo}
+  \item \textbf{Puntos alcanzables}
+  \item \textbf{Ruido}
+\end{itemize}
+Analicemos cada uno de los datos:
+\begin{itemize}
+  \item Se dice que un punto \textit{p} es un \textbf{punto núcleo} si al menos existen \textit{minPts} puntos que están a una distancia $\epsilon$ de él y dichos puntos son \textbf{directamente alcanzables} desde \textit{p}.
+  \item Se dice que un punto \textit{q} es un \textbf{punto alcanzable} desde un \textbf{punto núcleo} \textit{p} si existe una secuencia de puntos $p_1$,...,$p_n$, donde $p_1$ = $p$ y $p_n$ = $q$, de tal modo que cada punto $p_{i+1}$ es directamente alcanzable desde $p_i$. Por tanto, \textbf{todos los puntos de la secuencia deben ser puntos núcleos, con la posible excepción de \textit{q}}.
+  \item Por último, cualquier punto que no sea alcanzable desde cualquier otro punto es considerado como \textbf{ruido}
+\end{itemize}
+Pongamos un ejemplo:
+
+\begin{figure}[h!]
+\centering
+<<fig=T, echo = false, witdth = 500, height = 5>>=
+df <- data.frame(x = c(1, 3, 5, 7, 3, 5, 7, 9, 14), y = c(0.5, 0.7, 0.7, 0.6,0.3,0.4,0.5,0.7,2), color = c("yellow", "red", "red", "red", "red", "red", "red", "yellow", "blue"))
+plot(df$x, df$y, col = df$color, pch = 19)
+@
+\end{figure}
+En el imagen anterior, los puntos marcados en \textcolor{red}{rojo} son \textbf{puntos núcleo}. Por otro lado, los puntos marcados en \textcolor{green}{verde} son puntos \textbf{alcanzables} desde cualquier \textbf{punto núcleo}. Por último, el punto marcado en \textbf{negro} representa \textbf{ruido}, es decir, puntos que no son núcleo ni alcanzables desde otros puntos.
+
+Una de las características más importantes del algoritmo \textbf{DBSCAN} es que puede existir más de un punto núcleo, conformando un \textit{cluster}.
+
+Por tanto, un \textit{cluster} tiene dos propiedades:
+\begin{enumerate}
+  \item \textbf{Todos los puntos de dicho \textit{cluster} son alcanzables entre sí}
+  \item \textbf{Si un punto A es densamente alcanzable desde otro punto B del \textit{cluster}, A también formará parte de dicho \textit{cluster}}.
+\end{enumerate}
+
+El algoritmo comienza con dos parámetros de entrada: la \textbf{\textit{e} vecindad de cada punto}, es decir, el conjunto de nodos vecinos de cada punto; y el número \textbf{mínimo} de puntos para que una región se considere densa y, con ello, un \textit{cluster} (\textit{minPts}). 
+Comenzamos con un punto aleatorio no visitado en iteraciones anteriores:
+\begin{itemize}
+  \item Si la región es densa, es decir, si el número de vecinos (\textit{e} vecindad) es mayor o igual al mínimo de puntos establecido (\textit{minPts}), iniciamos un \textit{cluster} sobre dicho punto. 
+  \item En caso contrario, marcamos a ese punto como \textbf{ruido}.
+\end{itemize}
+
+Si un punto forma parte de un \textit{cluster}, su conjunto de \textit{e} vecinos pasan a formar parte también del \textit{cluster}, siempre y cuando la \textit{e} vecindad de estos puntos \textbf{sea lo suficientemente densa}, es decir, mayor o igual a \textit{minPts}. El proceso se repite hasta \textbf{haber construido un \textit{cluster} por completo}. De este modo, cualquier punto no visitado podremos comprobar si se trata de un nuevo \textit{cluster} o ruido.
+
+Tras analizar el comportamiento del algoritmo, vamos a aplicarlo para \textbf{clasificación de imágenes}, concretamente la \textbf{imagen por satélite del río Nilo} tomada por la \textbf{NASA}\footnote{\url{https://www.jpl.nasa.gov/spaceimages/details.php?id=PIA02647}}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=9cm]{nilo}
+\end{figure}
+
+Para ejecutar el algoritmo de clasificación, realizamos un total de tres fases:
+
+\textbf{En primer lugar}, aplicamos la técnica de \textbf{apilamiento de enfoque}, el cual consiste en generar a partir de una misma fotografía múltiples imágenes aplicando diferentes enfoques. Para ello disponemos de la función \textit{stack}, disponible en el paquete \textit{raster}.
+<<results = hide>>=
+if(!require(rgdal)){
+  install.packages("rgdal")
+  require(rgdal)
+}
+# 1. Apilamiento de enfoque
+# Instalamos la libreria
+if(!require(raster)){
+  install.packages("raster")
+  require(raster)
+}
+
+# Realizamos el proceso de rasterizado
+image <- stack("nilo.jpg")
+@
+
+\textbf{A continuación}, sobre las imagenes apiladas aplicamos el algoritmo \textit{dbscan} mediante la función \textit{dbscan}, disponible en el paquete \textit{dbscan}. En este caso, ejecutaremos el algoritmo con un total de 10 puntos mínimos para considerar para considerar a una región como un \textit{cluster} (\textbf{minPts}), y una densidad del número de vecinos de 0.8 para cada punto (\textbf{eps}). Analicemos una muestra de los resultados obtenidos:
+\begin{footnotesize}
+<<>>=
+# Incluimos el paquete dbscan
+if(!require(dbscan)){
+  install.packages("dbscan")
+  require(dbscan)
+}
+
+db <- dbscan(image[], eps = 0.8, minPts = 10)
+head(db$cluster, 200)
+@
+\end{footnotesize}
+Tras ejecutar la función, \textit{dbscan} nos devuelve un \textit{dataframe} con tres campos: \textbf{eps}, \textbf{minPts} y \textbf{cluster}. Este último muestra a qué \textit{cluster} pertenece cada elemento, salvo las filas a 0, los cuales se tratan de \textbf{ruido}.
+
+Para representar los resultados por pantalla \textit{convertimos la imagen original en un conjunto de píxeles}, conocido como \textbf{rasterizado}, utilizando la función \textit{raster}. Finalmente, asignamos cada \textit{cluster} al que pertenece cada punto a cada píxel de la imagen, obteniendo la siguiente imagen:
+
+\begin{figure}[h!]
+\centering
+<<fig = T>>=
+# Proceso de rasterizado
+result <- raster(image[[1]])
+
+# Asignamos el valor del cluster a cada pixel
+result <- setValues(result, db$cluster)
+plot(result)
+@
+\end{figure}
+\newpage
+Analizando los resultados obtenidos, el algoritmo \textbf{separa correctamente las áreas desérticas con respecto a las zonas con vegetación}. Sin embargo, \textbf{no distingue correctamente entre las zonas de vegetación y el mar}. Esto último puede deberse
+a que el número de puntos mínimos sea pequeño, por lo que aumentándolo podríamos llegar a distinguir ligeramente zonas costeras.
+\end{document}

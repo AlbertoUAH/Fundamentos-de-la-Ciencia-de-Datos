@@ -1,0 +1,499 @@
+\documentclass [a4paper] {article}
+\usepackage[hidelinks]{hyperref}
+\usepackage[spanish,activeacute]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{systeme}
+\usepackage{booktabs}
+
+\setlength{\parindent}{0pt}
+\textwidth = 500pt
+\hoffset = -70pt
+
+\title{\textbf{Fundamentos de la Ciencia de Datos Práctica 6}}
+\author{
+	Fernández Díaz, Daniel\\
+	Cano Díaz, Francisco\\
+	Fernández Hernández, Alberto\\
+}
+
+\date{10 de diciembre del 2019}
+\usepackage{Sweave}
+\begin{document}
+\input{G15-P6-concordance}
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+\section{Mapas estáticos}
+Los mapas estáticos (\textit{Static Maps}) es uno de los métodos de visualización más utilizados, el cual consiste en \textbf{visualizar una sola imagen}. Una de las herramientas  más utilizadas para visualizar gráficos de mapas es \textit{ggplot2}. Este paquete se basa en la \textbf{gramática de gráficos}, que consiste en una serie de componentes:
+\begin{itemize}
+  \item Datos a representar
+  \item Aspectos estéticos (\textit{aesthetics}), como ejes de coordenadas, leyendas etc.
+  \item Objetos geométricos (puntos, lineas, polígonos, áreas etc.)
+  \item Escalas
+  \item Coordenadas
+\end{itemize}
+Para este ejemplo visualizaremos los \textbf{porcentajes de asaltos producidos en Estados Unidos, argupados por Estados}. En primer lugar, instalamos el paquete \textit{ggplot2}:
+\begin{Schunk}
+\begin{Sinput}
+> # Cargamos el paquete ggplot2
+> if(!require(ggplot2)){
++   install.packages("ggplot2")
++   require(ggplot2)
++ }
+\end{Sinput}
+\end{Schunk}
+
+Una vez instalado el paquete, debemos obtener las coordenadas de \textbf{latitud} y \textbf{longitud} de cada uno de los estados. Para ello, nos descargamos un \textit{dataframe} que contienen las coordenadas limítrofes de cada Estado, importado desde la librería \textit{ggplot2}. Por otro lado, descargamos el \textit{dataset} que contiene los \textbf{porcentajes de asaltos por cada Estado}:
+
+\begin{Schunk}
+\begin{Sinput}
+> # Descargamos las coordenadas de cada estado
+> if (!require(maps)) {
++   install.packages("maps")
++   require(maps)
++ }
+> estados <- map_data("state")
+> head(estados)
+\end{Sinput}
+\begin{Soutput}
+       long      lat group order  region subregion
+1 -87.46201 30.38968     1     1 alabama      <NA>
+2 -87.48493 30.37249     1     2 alabama      <NA>
+3 -87.52503 30.37249     1     3 alabama      <NA>
+4 -87.53076 30.33239     1     4 alabama      <NA>
+5 -87.57087 30.32665     1     5 alabama      <NA>
+6 -87.58806 30.32665     1     6 alabama      <NA>
+\end{Soutput}
+\begin{Sinput}
+> # Descargamos el dataset del numero de asaltos
+> arrestos <- USArrests
+> # Ponemos los noimbres de las columnas a minusculas
+> names(arrestos) <- tolower(names(arrestos))
+> arrestos$region <- tolower(rownames(USArrests))
+> head(arrestos)
+\end{Sinput}
+\begin{Soutput}
+           murder assault urbanpop rape     region
+Alabama      13.2     236       58 21.2    alabama
+Alaska       10.0     263       48 44.5     alaska
+Arizona       8.1     294       80 31.0    arizona
+Arkansas      8.8     190       50 19.5   arkansas
+California    9.0     276       91 40.6 california
+Colorado      7.9     204       78 38.7   colorado
+\end{Soutput}
+\end{Schunk}
+
+Una vez descargados, unimos ambos \textit{dataframes} mediante la función \textit{merge}
+\begin{Schunk}
+\begin{Sinput}
+> df <- merge(estados, arrestos, sort = FALSE, by = "region")
+> df <- df[order(df$order), ]
+> head(df)
+\end{Sinput}
+\begin{Soutput}
+   region      long      lat group order subregion murder assault urbanpop rape
+1 alabama -87.46201 30.38968     1     1      <NA>   13.2     236       58 21.2
+2 alabama -87.48493 30.37249     1     2      <NA>   13.2     236       58 21.2
+6 alabama -87.52503 30.37249     1     3      <NA>   13.2     236       58 21.2
+7 alabama -87.53076 30.33239     1     4      <NA>   13.2     236       58 21.2
+8 alabama -87.57087 30.32665     1     5      <NA>   13.2     236       58 21.2
+9 alabama -87.58806 30.32665     1     6      <NA>   13.2     236       58 21.2
+\end{Soutput}
+\end{Schunk}
+
+Por último, representaremos gráficamente los datos mediante la función \textit{ggplot}. Para ello, especificamos los siguientes parámetros:
+\begin{itemize}
+  \item \textit{ggplot}: indicamos el \textit{dataframe}. Por otro lado, establecemos las coordenadas de longitud para el eje X, así como las coordenadas de latitud para el eje Y.
+  \item \textit{geom\_polygon}: para dibujar las diferentes fronteras.
+  \item \textit{coord\_map}: para proyectar una parte del globo terráqueo (concretamente la región de Estados Unidos).
+\end{itemize}
+\begin{figure}[hpbt!]
+\centering
+\begin{Schunk}
+\begin{Sinput}
+> if(!require(mapproj)){
++   install.packages("mapproj")
++   require(mapproj)
++ }
+> ggplot(df, aes(long, lat)) +
++   # Con fill rellenamos cada estado en funcion del asalto
++   geom_polygon(aes(group = group, fill = assault)) +
++   # (29.5 , 45.5) Coordenadas de EEUU
++   coord_map("albers",  at0 = 45.5, lat1 = 29.5)
+\end{Sinput}
+\end{Schunk}
+\includegraphics{G15-P6-004}
+\caption{Total de asaltos producidos en Estados Unidos}
+\end{figure}
+\newpage
+
+\section{\textit{Bubble Maps}}
+Los mapas de burbujas (\textit{Bubble Maps}) permiten representar \textbf{grandes volúmenes de datos, agrupados por intervalos}, donde cada intervalo se representa mediante un \textbf{círculo de diferente diámetro}. Para ello, utilizaremos el paquete \textit{tmap}. Este paquete ofrece un conjunto de herramientas que proporcionan una sintaxis concisa para la visualización de mapas \textbf{utilizando la menor cantidad de código posible}. Se basa en el concepto de \textbf{gramática de gráficos} (al igual que \textit{ggplot2}), separando los datos de entrada de la estética (\textbf{cómo visualizar los datos}). Para comenzar, \textbf{crearemos un \textit{mapa-mundi} en el que visualizaremos el índice de felicidad de cada país}. Para ello, realizamos los siguientes pasos:
+\begin{enumerate}
+  \item En primer lugar, debemos proyectar la plantilla del mapa. Para ello utilizaremos la función \textit{tm\_shape} para proyectar el \textit{mapa-mundi}.
+  \item Por otro lado, rellenamos cada uno de los países en función del índice de felicidad
+\end{enumerate}
+
+Para proyectar el mapa, es necesario un \textbf{DataFrame espacial} (\textit{Spatial Dataframe}), el cual consiste en un conjunto de arcos y flechas unidos por puntos, proyectando finalmente el mapa. Para visualizar el \textit{mapa-mundi}, utilizaremos el \textit{dataframe} espacial \textit{World}, disponible en el paquete \textit{tmap}:
+{\footnotesize
+\begin{Schunk}
+\begin{Sinput}
+> # Para concatenar diferentes funciones
+> # descargamos el paquete dplyr 
+> # (para concatenar utilizamos %>%)
+> if(!require(dplyr)){
++   install.packages("dplyr")
++   require(dplyr)
++ }
+> # Cargamos el paquete tmap
+> if(!require(tmap)){
++   install.packages("tmap")
++   require(tmap)
++ }
+> # Cargamos el dataset y los convertimos a dataframe
+> data("World")
+> World %>% as.data.frame() %>% head()
+\end{Sinput}
+\begin{Soutput}
+  iso_a3                 name           sovereignt     continent
+1    AFG          Afghanistan          Afghanistan          Asia
+2    AGO               Angola               Angola        Africa
+3    ALB              Albania              Albania        Europe
+4    ARE United Arab Emirates United Arab Emirates          Asia
+5    ARG            Argentina            Argentina South America
+6    ARM              Armenia              Armenia          Asia
+               area  pop_est pop_est_dens                   economy
+1  652860.00 [km^2] 28400000     43.50090 7. Least developed region
+2 1246700.00 [km^2] 12799293     10.26654 7. Least developed region
+3   27400.00 [km^2]  3639453    132.82675      6. Developing region
+4   71252.17 [km^2]  4798491     67.34519      6. Developing region
+5 2736690.00 [km^2] 40913584     14.95003   5. Emerging region: G20
+6   28470.00 [km^2]  2967004    104.21510      6. Developing region
+               income_grp gdp_cap_est life_exp well_being footprint inequality
+1           5. Low income    784.1549   59.668        3.8      0.79  0.4265574
+2  3. Upper middle income   8617.6635       NA         NA        NA         NA
+3  4. Lower middle income   5992.6588   77.347        5.5      2.21  0.1651337
+4 2. High income: nonOECD  38407.9078       NA         NA        NA         NA
+5  3. Upper middle income  14027.1261   75.927        6.5      3.14  0.1642383
+6  4. Lower middle income   6326.2469   74.446        4.3      2.23  0.2166481
+       HPI                       geometry
+1 20.22535 MULTIPOLYGON (((5310471 451...
+2       NA MULTIPOLYGON (((1531585 -77...
+3 36.76687 MULTIPOLYGON (((1729835 521...
+4       NA MULTIPOLYGON (((4675864 313...
+5 35.19024 MULTIPOLYGON (((-5017766 -6...
+6 25.66642 MULTIPOLYGON (((3677241 513...
+\end{Soutput}
+\end{Schunk}
+}
+Como podemos observar, lo que nos devuelve es un \textit{dataframe espacial} cuya última columna (\textit{geomtry}) contiene las dimensiones de cada polígonos que queremos representar (en este caso, la forma de cada país).
+Una vez cargado el \textit{dataframe} espacial, visualizamos los niveles de felicidad por país, utilizando las siguientes funciones:
+\begin{itemize}
+  \item \textit{tm\_shape}: para proyectar el mapa anterior.
+  \item \textit{tm\_polygons}: para visualizar un dataset sobre una plantilla \textit{tm\_shape}
+\end{itemize}
+\begin{figure}[htbp!]
+\centering
+\begin{Schunk}
+\begin{Sinput}
+> # 1. tm_shape: Utilizamos como plantilla el dataframe espacial
+> # del mapa-mundi
+> 
+> # 2. tm_polygons: visualizamos cada uno de los poligonos
+> # HPI: Happiness Index
+> # palette: seleccionamos la paleta de colores
+> tm_shape(World) + tm_polygons("HPI", palette = "-Blues")
+> 
+\end{Sinput}
+\end{Schunk}
+\includegraphics{G15-P6-006}
+\caption{Indice de felicidad por país}
+\end{figure}
+\newpage
+\textit{tmap} nos permite añadir más capas sobre la plantilla original, por lo que vamos a visualizar el mapa anterior junto con el nuevo mapa de burbujas. Para ello, sobre la plantilla original creada con la función \textit{tm\_shape}, representaremos mediante la función \textit{tm\_polygons} los índices de felicidad por país y la población por ciudad (empleando la función \textit{tm\_bubbles} para representar los datos de población por puntos)
+\begin{figure}[htbp!]
+\centering
+\begin{Schunk}
+\begin{Sinput}
+> # 1, En primer lugar, cargamos los datos del total de
+> # poblacion de las grandes metropolis
+> data(metro)
+> # A continuacion, visualizamos los indices de felicidad
+> # mediante poligonos, asi como el total de poblacion con
+> # burbujas
+> tm_shape(World) + tm_polygons("HPI") + tm_shape(metro) + tm_bubbles("pop2010")
+\end{Sinput}
+\end{Schunk}
+\includegraphics{G15-P6-007}
+\caption{Indice de felicidad por país-Poblacion mundial del año 2010}
+\end{figure}
+\newpage
+\section{Representar un \textit{dataset} sobre un mapa}
+Una vez visto las diferentes herramientas para visualizar mapas en \texttt{R}, vamos a \textbf{representar datos sobre un mapa}. Por ejemplo, vamos a visualizar \textbf{los diferentes aeropuertos dispersos por Europa}. Para ello, nos descargamos un \textit{dataset} que contiene las coordenadas de \textbf{latitud} y \textbf{longitud} de los diferentes aeropuertos: \footnote{\url{https://openflights.org/data.html}}
+\begin{Schunk}
+\begin{Sinput}
+> # Descargamos el dataset
+> aeropuertos <- read.csv("https://raw.githubusercontent.com/jpatokal/openflights/master/data/airports.dat", header = FALSE)
+> # Cambiamos el nombre de las columnas
+> colnames(aeropuertos) <- c("ID", "nombre", "ciudad", "pais",
++ "IATA_FAA", "ICAO", "lat", "lon", "altitud", "zona_horaria", "DST")
+> # Mostramos los 10 primeros datos
+> head(aeropuertos,10)
+\end{Sinput}
+\begin{Soutput}
+   ID                                      nombre       ciudad             pais
+1   1                              Goroka Airport       Goroka Papua New Guinea
+2   2                              Madang Airport       Madang Papua New Guinea
+3   3                Mount Hagen Kagamuga Airport  Mount Hagen Papua New Guinea
+4   4                              Nadzab Airport       Nadzab Papua New Guinea
+5   5 Port Moresby Jacksons International Airport Port Moresby Papua New Guinea
+6   6                 Wewak International Airport        Wewak Papua New Guinea
+7   7                          Narsarsuaq Airport Narssarssuaq        Greenland
+8   8                     Godthaab / Nuuk Airport     Godthaab        Greenland
+9   9                       Kangerlussuaq Airport  Sondrestrom        Greenland
+10 10                              Thule Air Base        Thule        Greenland
+   IATA_FAA ICAO       lat      lon altitud zona_horaria DST
+1       GKA AYGA -6.081690 145.3920    5282           10   U
+2       MAG AYMD -5.207080 145.7890      20           10   U
+3       HGU AYMH -5.826790 144.2960    5388           10   U
+4       LAE AYNZ -6.569803 146.7260     239           10   U
+5       POM AYPY -9.443380 147.2200     146           10   U
+6       WWK AYWK -3.583830 143.6690      19           10   U
+7       UAK BGBW 61.160500 -45.4260     112           -3   E
+8       GOH BGGH 64.190903 -51.6781     283           -3   E
+9       SFJ BGSF 67.012222 -50.7116     165           -3   E
+10      THU BGTL 76.531197 -68.7032     251           -4   E
+                     NA      NA          NA
+1  Pacific/Port_Moresby airport OurAirports
+2  Pacific/Port_Moresby airport OurAirports
+3  Pacific/Port_Moresby airport OurAirports
+4  Pacific/Port_Moresby airport OurAirports
+5  Pacific/Port_Moresby airport OurAirports
+6  Pacific/Port_Moresby airport OurAirports
+7       America/Godthab airport OurAirports
+8       America/Godthab airport OurAirports
+9       America/Godthab airport OurAirports
+10        America/Thule airport OurAirports
+\end{Soutput}
+\end{Schunk}
+\newpage
+Este \textit{dataframe} contiene las siguientes columnas:
+\begin{itemize}
+  \item \textbf{ID del aeropuerto}
+  \item \textbf{Nombre del aeropuerto}
+  \item \textbf{Ciudad}
+  \item \textbf{Pais}
+  \item \textbf{Código Internacional del aeropuerto} (IATA\_FAA)
+  \item \textbf{Código de la Organización de Aviación Civil Internacional} (ICAO)
+  \item \textbf{Coordenadas latitud, lontigud y altitud}
+  \item \textbf{Zona franja horaria}
+\end{itemize}
+
+Una vez descargado el \textit{dataset}, representamos gráficamente el \textit{mapa-mundi}. Para ello, utilizaremos el paquete \textit{rworldmap}:
+\begin{figure}[htbp!]
+\centering
+\begin{Schunk}
+\begin{Sinput}
+> if(!require(rworldmap)){
++   install.packages("rworldmap")
++   require(rworldmap)
++ }
+> newmap <- getMap(resolution = "low")
+> plot(newmap, xlim = c(-20, 59), ylim = c(35, 71), asp = 1)
+> points(aeropuertos$lon, aeropuertos$lat, col = "red", cex = .6)
+\end{Sinput}
+\end{Schunk}
+\includegraphics{G15-P6-009}
+\caption{Localización de aeropuertos}
+\end{figure}
+\newpage
+\section{Mapas hexagonales}
+Los mapas hexagonales (\textit{Hexbin maps}), permiten visualizar los datos mediante hexágonos de diferentes tonalidades. Valores de tonalidad altos indican una \textbf{mayor concentración}, mientras que valores bajos indican una \textbf{menor concentración}. A modo de ejemplo, \textbf{visualizaremos la cantidad de \textit{tweets} publicados con la etiqueta \textit{surf} alrededor de Europa}. Junto con el paquete \textit{ggplot2} utlizaremos el paquete \textit{viridis} que contiene la función \textit{scale\_fill\_viridis} con el que visualizaremos una leyenda sobre el mapa. En primer lugar, descargamos el paquete \textit{viridis}:
+\begin{Schunk}
+\begin{Sinput}
+> if(!require(viridis)){
++   install.packages("viridis")
++   require(viridis)
++ }
+> 
+\end{Sinput}
+\end{Schunk}
+A continuación, descargamos el \textit{dataset}:
+\begin{Schunk}
+\begin{Sinput}
+> # Load dataset from github
+> data <- read.table("https://raw.githubusercontent.com/holtzy/data_to_viz/master/Example_dataset/17_ListGPSCoordinates.csv", sep=",", header=T)
+> head(data)
+\end{Sinput}
+\begin{Soutput}
+    homelat    homelon homecontinent
+1  18.28548  -70.33012 South America
+2  39.10312  -84.51202 North America
+3  19.41095  -99.27186 South America
+4 -22.90685  -43.17290          <NA>
+5 -22.90685  -43.17290          <NA>
+6  33.93003 -118.28099 North America
+\end{Soutput}
+\end{Schunk}
+Finalmente, mediante la función \textit{ggplot} visualizamos el mapa hexagonal. Para ello, utilizaremos las siguientes funciones:
+\begin{itemize}
+  \item \textit{filter}: para filtrar por continente europeo.
+  \item \textit{ggplot}:
+    \begin{itemize}
+      \item \textit{aes}: definimos las coordenadas de longitud (\textit{homelon}) como eje X y las coordenadas de latitud (\textit{homelat}) como eje Y.
+      \item \textit{geom\_hex}: para visualizar cada dato con forma de hexágonos.
+      \item \textit{annotate}: permite realizar añadir elementos concretos sobre la gráfica, como fragmentos de texto (especificado con el parámetro \textit{text}) o segmentos (\textit{segment}), indicando diferentes parámetros como la posición del objeto (\textit{x},\textit{y}); el color, tamaño o el ajuste de texto, entre otros.
+      \item \textit{theme\_void}: para eliminar la cuadrícula y los ejes.
+      \item \textit{xlim}, \textit{ylim}: para especificar los límites del gráfico.
+      \item \textit{scale\_fill\_veridis}: para añadir una leyenda al gráfico
+        \begin{itemize}
+          \item \textit{option}: para especificar la paleta de colores (\textit{inferno}, por ejemplo).
+          \item \textit{trans}: la escala a utilizar para dividir la paleta de colores (por ejemplo, una escala logarítmica o \textit{log}).
+          \item \textit{breaks}: intervalo de valores en la leyenda.
+          \item \textit{name}: título de la leyenda
+          \item \textit{guide\_leyend}: especifica parámetros para la leyenda como la posición o la anchura.
+        \end{itemize}
+      \item \textit{ggtitle}: para añadir un título al gráfico. 
+      \item \textit{theme}: parámetros del gráfico, como el color de fondo, la fuente, el color de la leyenda, el tamaño de letra o el tamaño del título.
+    \end{itemize}
+\end{itemize}
+
+ \begin{figure}[htbp!]
+\centering
+\begin{Schunk}
+\begin{Sinput}
+> data %>%
++   filter(homecontinent=='Europe') %>%
++   ggplot( aes(x=homelon, y=homelat)) + 
++     geom_hex(bins=59) +
++     ggplot2::annotate("text", x = -27, y = 72, 
++             label="Tweets sobre #Surf", colour = "black", size=5, alpha=1, hjust=0) +
++     ggplot2::annotate("segment", x = -27, xend = 10, 
++             y = 70, yend = 70, colour = "black", size=0.2, alpha=1) +
++     theme_void() +
++     xlim(-30, 70) +
++     ylim(0, 72) +
++     scale_fill_viridis(
++       option="inferno",
++       trans = "log", 
++       breaks = c(1,7,54,403,3000),
++       name="Tweet # registrados en los ultimos 8 meses", 
++       guide = guide_legend( keyheight = unit(2.5, units = "mm"), 
++               keywidth=unit(10, units = "mm"), label.position = "top", 
++               title.position = 'top', nrow=1) 
++     )  +
++     ggtitle( "" ) + 
++     theme(
++       legend.position = c(0.8, 1),
++       legend.title=element_text(color="black", size=8),
++       text = element_text(color = "#22211d"),
++       plot.background = element_rect(fill = "#f5f5f2", color = NA), 
++       panel.background = element_rect(fill = "#f5f5f2", color = NA), 
++       legend.background = element_rect(fill = "#f5f5f2", color = NA),
++       plot.title = element_text(size= 13, hjust=0.1, color = "#4e4d47", 
++                   margin = margin(b = -0.1, t = 0.4, l = 2, unit = "cm")),
++     ) 
+>     
+\end{Sinput}
+\end{Schunk}
+\includegraphics{G15-P6-012}
+\caption{Tweets publicados sobre surf}
+\end{figure}
+\newpage
+\section{Mapa de conexiones}
+Un mapa de conexiones (\textit{Connection Map}) \textbf{muestra las conexiones entre diferentes puntos a lo largo de un mapa}. Para ello, utilizaremos los siguientes paquetes:
+\begin{itemize}
+  \item \textit{geosphere}: para la creación de conexiones entre diferentes puntos a lo largo del mapa.
+  \item \textit{maps}: para la visualización del \textit{mapa-mundi}.
+\end{itemize}
+En primer lugar, descargamos y añadimos los paquetes:
+\begin{Schunk}
+\begin{Sinput}
+> if(!require(geosphere)){
++   install.packages("geosphere")
++   require(geosphere)
++ }
+\end{Sinput}
+\end{Schunk}
+Para visualizar las conexiones entre los diferentes puntos, crearemos una función a la que llamaremos \textit{plot\_my\_connection}, que tendrá los siguientes parámetros:
+\begin{itemize}
+  \item textit{dep\_lon} y \textit{dep\_lat}: coordenadas de latitud y longitud del nodo 1.
+  \item textit{arr\_lon} y \textit{arr\_lat}: coordenadas de latitud y longitud del nodo 2.
+\end{itemize}
+
+En primer lugar, utilizaremos la función \textit{gcIntermediate}, la cual nos devuelve las \textbf{coordenadas de los puntos que conforman la línea que conecta ambos nodos, en forma de matriz}. Con los puntos obtenidos, los almacenamos en un \textit{dataframe}. Finalmente, mediante la función \textit{lines} creamos una línea con los puntos obtenidos:
+\begin{Schunk}
+\begin{Sinput}
+> # Funcion para crear una conexion entre dos nodos
+> plot_my_connection=function(dep_lon, dep_lat, arr_lon, arr_lat, ...){
++     inter <- gcIntermediate(c(dep_lon, dep_lat), c(arr_lon, arr_lat), n=50, 
++     addStartEnd=TRUE, breakAtDateLine=F)             
++     inter=data.frame(inter)
++     diff_of_lon=abs(dep_lon) + abs(arr_lon)
++     if(diff_of_lon > 180){
++         lines(subset(inter, lon>=0), ...)
++         lines(subset(inter, lon<0), ...)
++     }else{
++         lines(inter, ...)
++         }
++     }
+\end{Sinput}
+\end{Schunk}
+
+Una vez creada la función, vamos a realizar una conexión (a modo de prueba) entre las siguientes ciudades:
+\begin{itemize}
+  \item \textbf{Buenos Aires}
+  \item \textbf{París}
+  \item \textbf{Melbourne}
+  \item \textbf{San Petersburgo}
+  \item \textbf{Abidjan}
+  \item \textbf{Montreal}
+  \item \textbf{Nairobi}
+  \item \textbf{Salvador}
+\end{itemize}
+\newpage
+\thispagestyle{empty}
+\begin{figure}[htbp!]
+\centering
+\begin{Schunk}
+\begin{Sinput}
+> # En primer lugar, creamos un dataset con las coordenadas
+> # de latitud y longitud de cada una de las ciudades.
+> data <- rbind(
++     Buenos_aires=c(-58,-34),
++     Paris=c(2,49),
++     Melbourne=c(145,-38),
++     Saint.Petersburg=c(30.32, 59.93),
++     Abidjan=c(-4.03, 5.33),
++     Montreal=c(-73.57, 45.52),
++     Nairobi=c(36.82, -1.29),
++     Salvador=c(-38.5, -12.97)
++     )  %>% as.data.frame()
+> colnames(data)=c("long","lat")
+> # A continuacion, generamos parejas de nodos
+> all_pairs <- cbind(t(combn(data$long, 2)), t(combn(data$lat, 2))) %>% as.data.frame()
+> colnames(all_pairs) <- c("long1","long2","lat1","lat2")
+> # Mediante la funcion map representamos la plantilla
+> # con el mapa-mundi
+> par(mar=c(0,0,0,0))
+> # world = mapa-mundi
+> maps::map('world',col="#d1d1d1", fill=TRUE, bg="white", 
++ lwd=0.05,mar=rep(0,4),border=0, ylim=c(-80,80))
+> # Por cada pareja de nodos, representamos graficamente 
+> # las conexiones entre los nodos mediante lineas
+> for(i in 1:nrow(all_pairs)){
++     plot_my_connection(all_pairs$long1[i], all_pairs$lat1[i], all_pairs$long2[i], 
++     all_pairs$lat2[i], col="skyblue", lwd=1)
++     }
+> # Finalmente, representamos cada nodo mediante la funcion points
+> points(x=data$long, y=data$lat, col="slateblue", cex=2, pch=20)
+> text(rownames(data), x=data$long, y=data$lat,  col="slateblue", cex=1, pos=4)
+\end{Sinput}
+\end{Schunk}
+\includegraphics{G15-P6-015}
+\caption{Mapa de conexiones entre diferentes ciudades}
+\end{figure}
+\end{document}

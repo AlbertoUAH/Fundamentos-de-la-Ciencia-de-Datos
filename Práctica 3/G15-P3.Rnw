@@ -1,0 +1,1403 @@
+\documentclass [a4paper] {article}
+\usepackage[hidelinks]{hyperref}
+\usepackage[spanish,activeacute]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{booktabs}
+
+\setlength{\parindent}{0pt}
+\textwidth = 500pt
+\hoffset = -70pt
+
+\title{\textbf{Fundamentos de la Ciencia de Datos\\Práctica 3}}
+\author{
+	Fernández Díaz, Daniel\\
+	Cano Díaz, Francisco\\
+	Fernández Hernández, Alberto\\
+}
+
+\date{5 de noviembre del 2019}
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+
+\section{Apartado 1}
+La primera parte de la práctica consistirá en la realización de dos ejercicios en clase con ayuda del profesor en el que se va a
+realizar un \textbf{análisis de clasificación} de Datos con \texttt{R} aplicando todos los conceptos vistos en el tema.
+\subsection{Apartado 1.1: Árboles de decisión de Hunt}
+El primer ejercicio consitirá en el desarrollo de un árbol de decisión mediante el \textbf{algoritmo de Hunt}, utilizando la siguiente 
+muestra de datos con calificiones en \textbf{teoría}, \textbf{laboratorio} y \textbf{prácticas}, almacenadas el fichero \textit{calificaciones.txt}:
+\begin{center}
+  {Teoria, Laboratorio, Prácticas, Calificación Global}
+  \begin{enumerate}
+    \centering
+    \item \{A, A, B, Ap\}
+    \item \{A, B, D, Ss\}
+    \item \{D, D, C, Ss\}
+    \item \{D, D, A, Ss\}
+    \item \{B, C, B, Ss\}
+    \item \{C, B, B, Ap\}
+    \item \{B, B, A, Ap\}
+    \item \{C, D, C, Ss\}
+    \item \{B, A, C, Ss\}
+  \end{enumerate}
+\end{center}
+En primer lugar, leemos el fichero \textit{calificaciones.txt} mediante el comando \textbf{\textit{read.table}}:
+<<>>=
+calificaciones <- read.table("calificaciones.txt")
+#Convertimos el dato a formato dataframe
+muestra <- data.frame(calificaciones)
+muestra
+@
+Una vez obtengamos nuestro \textit{dataframe}, utilizaremos la función \textbf{\textit{rpart}} (disponible en la librería \textit{rpart}) 
+para la creación del árbol de decisión. Además, aplicaremos el \textit{Gini} como medida de impureza para el cálculo de la ganancia de información,
+por defecto en \textit{rpart}:
+\newpage
+<<>>=
+if(!require(rpart)){
+	install.packages("rpart")
+	library(rpart)
+}
+clasificacion <- rpart(Calif_glob ~., data = muestra, method = "class", minsplit = 1)
+@
+
+Los argumentos de la función \textbf{\textit{rpart}} que hemos utilizado son:
+\begin{itemize}
+    \item \textbf{Formula}:  indicamos la fórmula para la clasificación. En nuestro caso, establecemos \textit{Calif\_glob} como clasificador,
+		  mientras que el resto de columnas serán los valores utilizados para clasificar (indicado con un punto).
+    \item \textbf{data}: la muestra a clasificar.
+    \item \textbf{method}: en nuestro caso, elegimos el método de \textbf{clasificación}.
+    \item \textbf{minsplit}: indica el número mínimo de observaciones que deben existir en un nodo.
+\end{itemize}
+
+Una vez elaborado el árbol de decisión, vamos a visualizarlo:
+<<>>=
+clasificacion
+@
+
+Una vez obtenido el árbol nos disponemos a mostrarlo. Para ello utilizaremos el comando \textbf{\textit{rpart.plot}} de la librería \textit{rpart.plot}:
+<<>>=
+if(!require(rpart.plot)){
+	install.packages("rpart.plot")
+	library(rpart.plot)
+}
+@
+\newpage
+\begin{figure}[h!]
+\centering
+<<fig=T>>=
+rpart.plot(clasificacion,type=5)
+@
+\caption{Árbol de decisión para la muestra de Califiaciones}
+\end{figure}
+
+Como podemos ver en el árbol de descisión tenemos un clasificador en el cual partimos de la nota de \textbf{Laboratorio}.
+Si esta nota es una C o D podemos decir que la \textbf{Calificación Global} es Suspenso pero si es A o B tendremos que mirar
+la nota de \textbf{Prácticas}, la cual, si es una A o B es Aprobado mientras que si es una C o D es Suspenso.
+
+\newpage
+
+\subsection{Apartado 1.2: Regresión lineal}
+En este apartado se realizará un \textbf{análisis de regresión lineal} utilizando la muestra formada por los radios y densidades
+de 4 planetas interiores:
+\begin{center}
+  {Planeta, Radio, Densidad}
+  \begin{enumerate}
+    \centering
+    \item \{Mercurio, 2.4, 6.4\}
+    \item \{Venus, 6.1, 5.2\}
+    \item \{Tierra, 6.4, 5.5\}
+    \item \{Marte, 3.4, 3.9\}
+  \end{enumerate}
+  \end{center}
+
+En primer lugar, realizamos la lectura del fichero \textbf{\textit{planetas.txt}} donde se encuentra la muestra:
+<<>>=
+planetas <- read.table("planetas.txt")
+#Convertimos el dato a dataframe
+muestra_planetas <- data.frame(planetas)
+muestra_planetas
+@
+
+Una vez tenemos el \textit{dataframe}, mediante la función \textbf{\textit{lm}} vamos a crear un \textbf{modelo de regresión lineal},
+con el que estableceremos una fórmula para el cálculo de la \textbf{densidad} en función del \textbf{radio} de los planetas (indicado
+de la siguiente manera: D \textasciitilde{} R):
+<<>>=
+regresion <- lm(D ~ R, data = muestra_planetas)
+#y = a + bx
+#Coeficientes a b
+#Intercept --> a
+#R --> b
+regresion
+@
+
+Como podemos comprobar, obtenemos la siguiente función de regresión: \textit{y = 0.1394x + 4.3624}.
+
+\newpage
+
+Una vez obtenida la función de regresión, nos disponemos a mostrarla gráficamenente el \textbf{modelo de regresión lineal}, es decir,
+representaremos el \textbf{diagrama de dispersión} junto con la \textbf{recta de ajuste}. Para ello utilizaremos el comando \textbf{\textit{plot}}
+y \textbf{\textit{abline}}:
+\begin{figure}[h!]
+\centering
+<<fig=T>>=
+ plot(muestra_planetas$R,muestra_planetas$D,xlab='Radio Ecuatorial',
+      ylab='Densidad', main = "Modelo Regresión Lineal: Planetas Interiores")
+ abline(regresion,col='red')
+@
+\caption{Modelo Regresión Lineal: Planetas Interiores}
+\end{figure}
+
+\newpage
+
+Además, si ejecutamos el comando \textbf{\textit{summary}} podremos ver, entre otros campos, el \textbf{error estándar residual} de la función:
+<<>>=
+summary(regresion)
+@
+Con la representación gráfica y los valores que nos muestra \textit{summary} podemos ver que es un \textbf{modelo de regresión lineal mal ajustado} 
+ya que la recta no se ajusta correctamente a los valores y estos a su vez se encuentran bastante lejos de la recta. Esto se debe principalmente a 
+la poca cantidad de datos de los que disponemos. \\
+Si entramos en más detalle en el comando \textit{summary} podemos observar el error estándar residual de cada uno de los puntos al valor correspondiente
+en la recta (Mercurio: 0.70312; Venus: -0.01253; Tierra: 0.24566; Marte: -0.93624). Todos estos errores son grandes salvo el de Venus, ya que como 
+vemos en la gráfica esta muy cerca de la recta de ajuste. Por último destacar el error estándar residual total que es 0.846, lo que nos confirma el mal
+ajuste de la recta.
+
+\newpage
+\section{Apartado 2}
+En este apartado realizaremos de nuevo varios \textbf{análisis de clasificación} pero en este caso utilizaremos nuevas muestras y herramientas.
+\subsection{Apartado 2.1: Árboles de decisión de Hunt}
+Al igual que hicimos en el Apartado 1.1 desarrollaremos el árbol de decisión mediante el \textbf{Algoritmo de Hunt}, pero en este caso utilizaremos la
+siguiente muestra:
+\begin{center}
+  {TipoCarnet, NúmeroRuedas, NúmeroPasajeros, TipoVehículo}
+  \begin{enumerate}
+    \centering
+    \item \{B, 4, 5, Coche\}
+    \item \{A, 2, 2, Moto\}
+    \item \{N, 2, 1, Bicicleta\}
+    \item \{B, 6, 4, Camion\}
+    \item \{B, 4, 6, Coche\}
+    \item \{B, 4, 4, Coche\}
+    \item \{N, 2, 2, Bicicleta\}
+    \item \{B, 2, 1, Moto\}
+    \item \{B, 6, 2, Camion\}
+	\item \{N, 2, 1, Bicicleta\}
+  \end{enumerate}
+\end{center}
+En esta muestra, tenemos las características de 10 vehículos de cuatro tipos diferentes. A partir del \textbf{TipoCarnet}, \textbf{NúmeroRuedas} y
+\textbf{NúmeroPasajeros} obtendremos el \textbf{TipoVehículo} que será nuestro suceso clasificador.
+
+Lo primero que debemos que hacer, al igual que antes, es leer el fichero \textbf{\textit{vehiculos.txt}} que contiene la muestra:
+<<>>=
+vehiculos <- read.table("vehiculos.txt")
+vehiculos
+@
+
+Donde TC corresponde a TipoCarnet, NR a NúmeroRuedas, NP a NúmeroPasajeros y TP a TipoVehículo.
+
+\newpage
+Una vez leída la muestra, aplicaremos el \textbf{algoritmo de Hunt} para el desarrollo del \textbf{árbol de decisión} mediante las siguientes funciones:
+<<>>=
+## Arboles de decision: Algoritmo de Hunt ##
+
+# Funcion principal. Llama a las funciones que construyen el arbol y lo muestran.
+arbol <- function(muestra){
+  clasificacion <- arbol.clasificacion(muestra)
+  arbol.mostrar(clasificacion)
+}
+
+# Realiza la construccion del arbol de decision mediante el comando rpart utilizando
+# el Gini para calcular la ganancia de informacion.
+# Además, como parametro le podemos pasar la columna que queramos considerar
+# como suceso clasificador (por defecto, sera la ultima).
+arbol.clasificacion <- function(muestra,posClasificador=length(muestra)){
+  clasificacion <- rpart(paste(colnames(muestra)[posClasificador],"~."),data=muestra,
+                         method="class",minsplit=1,parms=list(split="gini"),model=T)
+}
+
+# Muestra el arbol de decision mediante el comando rpart.plot.
+arbol.mostrar <- function(clasificacion){
+   rpart.plot(clasificacion,type=5)
+}
+@
+
+\begin{figure}[!h]
+\centering
+<<fig=T>>=
+## Ejecucion ##
+arbol(vehiculos)
+@
+\caption{Árbol de decisión para la muestra de Vehículos}
+\end{figure}
+\newpage
+Como podemos ver en el árbol de descisión tenemos un clasificador en el cual partimos de la característica \textbf{TipoCarnet}.
+Si esa característica toma como valor una N podemos decir que el \textbf{TipoVehículo} es una Bicicleta pero si es A o B tendremos que mirar
+la característica \textbf{NúmeroRuedas}, la cual, si es menor que 3 es una Moto mientras que si es mayor o igual que 3 volvemos a mirar la
+misma caracteristica, de tal forma que si es mayor o igual que 5 es un Camión y si es menor que 5 es un Coche.
+
+\newpage
+
+Ahora bien, ¿por qué tenemmos como \textbf{nodo raíz} a \textbf{TipoCarnet}?
+Para contestar a la pregunta debemos calcular la \textbf{ganancia de información} de los tres posibles casos:
+\begin{enumerate}
+	\item Ganancia de información basada en el Gini del nodo \textbf{TipoCarnet}
+	
+		\begin{center}
+		\begin{tikzpicture} [sibling distance=6cm]
+		\node [style={circle, fill=blue!20!white}, align = center]{Tipo \\ Carnet}
+		child {node {A,B}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 3 \\ Camión: 2 \\ Moto: 2 \\ Bicicleta: 0}}}
+		child {node {N}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 0 \\ Camión: 0 \\ Moto: 0 \\ Bicicleta: 3}}
+		};
+		\end{tikzpicture}
+		\end{center}
+		
+		Impurezas:
+		\begin{align*}
+			Gini(padre) &= 1 - \sum_{i=0}^{c-1}(f_i(padre))^2 = 
+			1 - \left(\left(\frac{3}{10}\right)^2+\left(\frac{2}{10}\right)^2+\left(\frac{2}{10}\right)^2+\left(\frac{3}{10}\right)^2\right) = 0.74 \\
+			Gini(hijo 1) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 1))^2 = 
+			1 - \left(\left(\frac{3}{7}\right)^2+\left(\frac{2}{7}\right)^2+\left(\frac{2}{7}\right)^2+\left(\frac{0}{7}\right)^2\right) = 0.65 \\
+			Gini(hijo 2) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 2))^2 = 
+			1 - \left(\left(\frac{0}{3}\right)^2+\left(\frac{0}{3}\right)^2+\left(\frac{0}{3}\right)^2+\left(\frac{3}{3}\right)^2\right) = 0 \\
+		\end{align*}
+		La última impureza sale 0 ya que hemos clasificado las bicicletas.
+		Ganancia de información:
+		\begin{align*}
+			A_I &= I_{padre} - \sum_{i=1}^{n}\frac{N(n_i)}{N}*I_{n_i} = 0.74 - ((\frac{7}{10}*0.65)+(\frac{3}{10}*0)) = 0.285
+		\end{align*}
+		
+	\item Ganancia de información basada en el Gini del nodo \textbf{NúmeroRuedas}
+	
+		\begin{center}
+		\begin{tikzpicture} [sibling distance=6cm]
+		\node [style={circle, fill=blue!20!white}, align = center]{Número \\ Ruedas}
+		child {node {>=3}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 3 \\ Camión: 2 \\ Moto: 0 \\ Bicicleta: 0}}}
+		child {node {<3}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 0 \\ Camión: 0 \\ Moto: 2 \\ Bicicleta: 3}}
+		};
+		\end{tikzpicture}
+		\end{center}
+		
+		Impurezas:
+		\begin{align*}
+			Gini(padre) &= 1 - \sum_{i=0}^{c-1}(f_i(padre))^2 = 
+			1 - \left(\left(\frac{3}{10}\right)^2+\left(\frac{2}{10}\right)^2+\left(\frac{2}{10}\right)^2+\left(\frac{3}{10}\right)^2\right) = 0.74 \\
+			Gini(hijo 1) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 1))^2 = 
+			1 - \left(\left(\frac{3}{5}\right)^2+\left(\frac{2}{5}\right)^2+\left(\frac{0}{5}\right)^2+\left(\frac{0}{5}\right)^2\right) = 0.48 \\
+			Gini(hijo 2) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 2))^2 = 
+			1 - \left(\left(\frac{0}{5}\right)^2+\left(\frac{0}{5}\right)^2+\left(\frac{2}{5}\right)^2+\left(\frac{3}{5}\right)^2\right) = 0.48 \\
+		\end{align*}
+		Ganancia de información:
+		\begin{align*}
+			A_I &= I_{padre} - \sum_{i=1}^{n}\frac{N(n_i)}{N}*I_{n_i} = 0.74 - ((\frac{5}{10}*0.48)+(\frac{5}{10}*0.48)) = 0.26
+		\end{align*}
+	
+	\item Ganancia de información basada en el Gini del nodo \textbf{NúmeroPasajeros}
+	
+		\begin{center}
+		\begin{tikzpicture} [sibling distance=6cm]
+		\node [style={circle, fill=blue!20!white}, align = center]{Número \\ Pasajeros}
+		child {node {>=3}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 3 \\ Camión: 2 \\ Moto: 0 \\ Bicicleta: 0}}}
+		child {node {<3}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 0 \\ Camión: 0 \\ Moto: 2 \\ Bicicleta: 3}}
+		};
+		\end{tikzpicture}
+		\end{center}
+		
+		Al tener los mismos datos que el anterior tendremos una ganancia de información de 0.26.
+	
+\end{enumerate}
+
+Efectivamente, \textbf{TipoCarnet} es el nodo raíz de nuestro árbol de decisión ya que es el que \textbf{mayor} ganancia de información presenta.
+Veamos de la misma manera la elección de los nodos intermedios:
+
+\newpage
+
+Para ello debemos tener en cuenta que los vehículos de tipo Bicicleta ya están clasificados y por lo tanto no los tendremos en cuenta en los 
+siguientes pasos (quedando 7 vehículos). Calculamos la \textbf{ganancia de información} de cada uno de los posibles nodos:
+
+\begin{enumerate}
+	\item Ganancia de información basada en el Gini del nodo \textbf{TipoCarnet}
+	
+		\begin{center}
+		\begin{tikzpicture} [sibling distance=6cm]
+		\node [style={circle, fill=blue!20!white}, align = center]{Tipo \\ Carnet}
+		child {node {B}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 3 \\ Camión: 2 \\ Moto: 1 \\ Bicicleta: 0}}}
+		child {node {A}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 0 \\ Camión: 0 \\ Moto: 1 \\ Bicicleta: 0}}
+		};
+		\end{tikzpicture}
+		\end{center}
+		
+		Impurezas:
+		\begin{align*}
+			Gini(padre) &= 1 - \sum_{i=0}^{c-1}(f_i(padre))^2 = 
+			1 - \left(\left(\frac{3}{7}\right)^2+\left(\frac{2}{7}\right)^2+\left(\frac{2}{7}\right)^2+\left(\frac{0}{7}\right)^2\right) = 0.65 \\
+			Gini(hijo 1) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 1))^2 = 
+			1 - \left(\left(\frac{3}{6}\right)^2+\left(\frac{2}{6}\right)^2+\left(\frac{1}{6}\right)^2+\left(\frac{0}{6}\right)^2\right) = 0.61 \\
+			Gini(hijo 2) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 2))^2 = 
+			1 - \left(\left(\frac{0}{1}\right)^2+\left(\frac{0}{1}\right)^2+\left(\frac{1}{1}\right)^2+\left(\frac{0}{1}\right)^2\right) = 0 \\
+		\end{align*}
+		La última impureza sale 0 ya que hemos clasificado una de las motos.
+		Ganancia de información:
+		\begin{align*}
+			A_I &= I_{padre} - \sum_{i=1}^{n}\frac{N(n_i)}{N}*I_{n_i} = 0.65 - ((\frac{6}{7}*0.61)+(\frac{1}{7}*0)) = 0.13
+		\end{align*}
+		
+	\item Ganancia de información basada en el Gini del nodo \textbf{NúmeroRuedas}
+	
+		\begin{center}
+		\begin{tikzpicture} [sibling distance=6cm]
+		\node [style={circle, fill=blue!20!white}, align = center]{Número \\ Ruedas}
+		child {node {>=3}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 3 \\ Camión: 2 \\ Moto: 0 \\ Bicicleta: 0}}}
+		child {node {<3}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 0 \\ Camión: 0 \\ Moto: 2 \\ Bicicleta: 0}}
+		};
+		\end{tikzpicture}
+		\end{center}
+		
+		Impurezas:
+		\begin{align*}
+			Gini(padre) &= 1 - \sum_{i=0}^{c-1}(f_i(padre))^2 = 
+			1 - \left(\left(\frac{3}{7}\right)^2+\left(\frac{2}{7}\right)^2+\left(\frac{2}{7}\right)^2+\left(\frac{0}{7}\right)^2\right) = 0.65 \\
+			Gini(hijo 1) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 1))^2 = 
+			1 - \left(\left(\frac{3}{5}\right)^2+\left(\frac{2}{5}\right)^2+\left(\frac{0}{5}\right)^2+\left(\frac{0}{5}\right)^2\right) = 0.48 \\
+			Gini(hijo 2) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 2))^2 = 
+			1 - \left(\left(\frac{0}{2}\right)^2+\left(\frac{0}{2}\right)^2+\left(\frac{2}{2}\right)^2+\left(\frac{0}{2}\right)^2\right) = 0 \\
+		\end{align*}
+		La última impureza sale 0 ya que hemos clasificado las motos.
+		Ganancia de información:
+		\begin{align*}
+			A_I &= I_{padre} - \sum_{i=1}^{n}\frac{N(n_i)}{N}*I_{n_i} = 0.65 - ((\frac{5}{7}*0.48)+(\frac{2}{7}*0)) = 0.3
+		\end{align*}
+	
+	\item Ganancia de información basada en el Gini del nodo \textbf{NúmeroPasajeros}
+	
+		\begin{center}
+		\begin{tikzpicture} [sibling distance=6cm]
+		\node [style={circle, fill=blue!20!white}, align = center]{Número \\ Pasajeros}
+		child {node {>=3}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 3 \\ Camión: 2 \\ Moto: 1 \\ Bicicleta: 0}}}
+		child {node {<3}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 0 \\ Camión: 0 \\ Moto: 1 \\ Bicicleta: 3}}
+		};
+		\end{tikzpicture}
+		\end{center}
+		
+		Al tener los mismos datos que el TipoVehículo tendremos una ganancia de información de 0.13.
+	
+\end{enumerate}
+
+Efectivamente, \textbf{NúmeroRuedas} es el nodo intermedio de nuestro árbol de decisión ya que es el que \textbf{mayor} ganancia de información presenta.
+Veamos de la misma manera la elección para el siguiente nodo intermedio:
+
+\newpage
+
+Para ello debemos tener en cuenta que los vehículos de tipo Bicicleta y Moto ya están clasificados y por lo tanto no los tendremos en cuenta en los 
+siguientes pasos (quedando 5 vehículos). Calculamos la \textbf{ganancia de información} de cada uno de los posibles nodos:
+
+\begin{enumerate}
+	\item Ganancia de información basada en el Gini del nodo \textbf{TipoCarnet}
+		
+		\begin{center}
+		\begin{tikzpicture} [sibling distance=6cm]
+		\node [style={circle, fill=blue!20!white}, align = center]{Tipo \\ Carnet}
+		child {node {B}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 3 \\ Camión: 2 \\ Moto: 0 \\ Bicicleta: 0}}}
+		child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 0 \\ Camión: 0 \\ Moto: 0 \\ Bicicleta: 0}
+		};
+		\end{tikzpicture}
+		\end{center}
+		
+		Impurezas:
+		\begin{align*}
+			Gini(padre) &= 1 - \sum_{i=0}^{c-1}(f_i(padre))^2 = 
+			1 - \left(\left(\frac{3}{5}\right)^2+\left(\frac{2}{5}\right)^2+\left(\frac{0}{5}\right)^2+\left(\frac{0}{5}\right)^2\right) = 0.48 \\
+			Gini(hijo 1) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 1))^2 = 
+			1 - \left(\left(\frac{3}{5}\right)^2+\left(\frac{2}{5}\right)^2+\left(\frac{0}{5}\right)^2+\left(\frac{0}{5}\right)^2\right) = 0.48 \\
+			Gini(hijo 2) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 2))^2 = 
+			1 - \left(\left(\frac{0}{0}\right)^2+\left(\frac{0}{0}\right)^2+\left(\frac{0}{0}\right)^2+\left(\frac{0}{0}\right)^2\right) = 0 \\
+		\end{align*}
+		La última impureza sale 0 ya que no tenemos más datos a clasificar.
+		Ganancia de información:
+		\begin{align*}
+			A_I &= I_{padre} - \sum_{i=1}^{n}\frac{N(n_i)}{N}*I_{n_i} = 0.48 - ((\frac{5}{5}*0.48)+(\frac{0}{5}*0)) = 0
+		\end{align*}
+		Nos sale cero ya que realmente no estamos clasificando.
+		
+	\item Ganancia de información basada en el Gini del nodo \textbf{NúmeroRuedas}
+	
+		\begin{center}
+		\begin{tikzpicture} [sibling distance=6cm]
+		\node [style={circle, fill=blue!20!white}, align = center]{Número \\ Ruedas}
+		child {node {>=5}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 0 \\ Camión: 2 \\ Moto: 0 \\ Bicicleta: 0}}}
+		child {node {<5}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 3 \\ Camión: 0 \\ Moto: 0 \\ Bicicleta: 0}}
+		};
+		\end{tikzpicture}
+		\end{center}
+		
+		Impurezas:
+		\begin{align*}
+			Gini(padre) &= 1 - \sum_{i=0}^{c-1}(f_i(padre))^2 = 
+			1 - \left(\left(\frac{3}{5}\right)^2+\left(\frac{2}{5}\right)^2+\left(\frac{0}{5}\right)^2+\left(\frac{0}{5}\right)^2\right) = 0.48 \\
+			Gini(hijo 1) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 1))^2 = 
+			1 - \left(\left(\frac{2}{2}\right)^2+\left(\frac{0}{2}\right)^2+\left(\frac{0}{2}\right)^2+\left(\frac{0}{2}\right)^2\right) = 0 \\
+			Gini(hijo 2) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 2))^2 = 
+			1 - \left(\left(\frac{3}{3}\right)^2+\left(\frac{0}{3}\right)^2+\left(\frac{0}{3}\right)^2+\left(\frac{0}{3}\right)^2\right) = 0 \\
+		\end{align*}
+		Las impurezas de los hijos salen 0 ya que ambas clasifican.
+		Ganancia de información:
+		\begin{align*}
+			A_I &= I_{padre} - \sum_{i=1}^{n}\frac{N(n_i)}{N}*I_{n_i} = 0.48 - ((\frac{2}{5}*0)+(\frac{3}{5}*0)) = 0.48
+		\end{align*}
+	
+	\item Ganancia de información basada en el Gini del nodo \textbf{NúmeroPasajeros}
+	
+		\begin{center}
+		\begin{tikzpicture} [sibling distance=6cm]
+		\node [style={circle, fill=blue!20!white}, align = center]{Número \\ Pasajeros}
+		child {node {>=3}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 3 \\ Camión: 1 \\ Moto: 0 \\ Bicicleta: 0}}}
+		child {node {2}
+			child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche: 0 \\ Camión: 1 \\ Moto: 0 \\ Bicicleta: 0}}
+		};
+		\end{tikzpicture}
+		\end{center}
+		
+		Impurezas:
+		\begin{align*}
+			Gini(padre) &= 1 - \sum_{i=0}^{c-1}(f_i(padre))^2 = 
+			1 - \left(\left(\frac{3}{5}\right)^2+\left(\frac{2}{5}\right)^2+\left(\frac{0}{5}\right)^2+\left(\frac{0}{5}\right)^2\right) = 0.48 \\
+			Gini(hijo 1) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 1))^2 = 
+			1 - \left(\left(\frac{3}{4}\right)^2+\left(\frac{1}{4}\right)^2+\left(\frac{0}{4}\right)^2+\left(\frac{0}{4}\right)^2\right) = 0.375 \\
+			Gini(hijo 2) &= 1 - \sum_{i=0}^{c-1}(f_i(hijo 2))^2 = 
+			1 - \left(\left(\frac{0}{1}\right)^2+\left(\frac{1}{1}\right)^2+\left(\frac{0}{1}\right)^2+\left(\frac{0}{1}\right)^2\right) = 0 \\
+		\end{align*}
+		La última impureza sale 0 ya que hemos clasificado uno de los camiones.
+		Ganancia de información:
+		\begin{align*}
+			A_I &= I_{padre} - \sum_{i=1}^{n}\frac{N(n_i)}{N}*I_{n_i} = 0.48 - ((\frac{4}{5}*0.375)+(\frac{1}{5}*0)) = 0.18
+		\end{align*}
+	
+\end{enumerate}
+
+Efectivamente, \textbf{NúmeroRuedas} es el siguiente nodo intermedio de nuestro árbol de decisión ya que es el que \textbf{mayor} ganancia de información
+presenta. Además, estamos ante un nodo hoja ya que hemos clasificado lo que nos quedaba de la muestra. Por lo tanto el árbol final nos queda:
+
+\newpage
+
+\begin{center}
+\begin{tikzpicture} [sibling distance=6cm]
+\node [style={circle, fill=blue!20!white}, align = center]{Tipo \\ Carnet}
+child {node {A,B}
+	child {node[style={circle, fill=blue!20!white}, align = center] {Número \\ Ruedas}
+			child{node {>=3}
+				child {node[style={circle, fill=blue!20!white}, align = center] {Número \\ Ruedas}
+					child{node {>=5}
+						child {node[style={rectangle, fill=blue!20!white}, align = center] {Camión}}}
+					child{node {<5}
+						child {node[style={rectangle, fill=blue!20!white}, align = center] {Coche}}}}}
+			child{node {<3}
+				child {node[style={rectangle, fill=blue!20!white}, align = center] {Moto}}}}}
+child {node {N}
+	child {node[style={rectangle, fill=blue!20!white}, align = center] {Bicicleta}}
+};
+\end{tikzpicture}
+\end{center}
+
+Como podemos observar obtenemos el mismo árbol de decisión que nos construía \textit{rpart} aplicando la ganancia de información con el Gini.
+
+\newpage
+
+\subsection{Apartado 2.2: Regresión lineal}
+Al igual que hicimos en el Apartado 1.2 realizaremos un \textbf{análisis de regresión lineal}, pero en este caso utilizaremos 4 muestras:
+\begin{center}
+	\begin{itemize}
+		\item \textbf{Muestra 1}: \{10, 8.04; 8, 6.95; 13, 7.58; 9, 8.81; 11, 8.33; 14, 9.96; 6, 7.24; 4, 4.26; 12, 10.84; 7, 4.82; 5, 5.68\}
+		\item \textbf{Muestra 2}: \{10, 9.14; 8, 8.14; 13, 8.74; 9, 8.77; 11, 9.26; 14, 8.1; 6, 6.13; 4, 3.1; 12, 9.13; 7, 7.26; 5, 4.74\}
+		\item \textbf{Muestra 3}: \{10, 7.46; 8, 6.77; 13, 12.74; 9, 7.11; 11, 7.81; 14, 8.84; 6, 6.08; 4, 5.39; 12, 8.15; 7, 6.42; 5, 5.73\}
+		\item \textbf{Muestra 4}: \{8, 6.58; 8, 5.76; 8, 7.71; 8, 8.84; 8, 8.47; 8, 7.04; 8, 5.25; 19, 12.5; 8, 5.56; 8, 7.91; 8, 6.89\}
+	\end{itemize}
+\end{center}
+
+En primer lugar, realizamos la lectura de las 4 muestras mediante la laectura del fichero \textit{muestra4.txt} mediante la siguiente función, la cual devuelve un listado de los cuatro \textit{dataframes}:
+<<>>=
+# Funcion que lee las muestras contenidas en un fichero .txt
+# Para ello le pasamos la ruta del fichero, la separacion entre
+# los datos, la separacion entre las muestras (salto) y si tiene
+# cabecera o no.
+muestra.leer <- function(ruta,sep=" ",salto="",header=FALSE){
+  # Creamos la conexion y leemos las lineas del fichero.
+	con <- file(ruta, "r", blocking = FALSE)
+	datos <- readLines(con)
+	close(con)
+	
+	# Establecemos las variables para controlar el programa
+	# y la variable dataframes donde guardaremos cada una de
+	# las muestras obtenidas.
+	tabla = NULL
+	contador = 1
+	dataframes = list()
+
+	# Leemos cada una de las lineas obtenidas anteriormente
+	# y las escribimos en un archivo temporal. Cuando detectamos
+	# el fin de la muestra, realizamos un read.table de ese
+	# archivo temporal.
+	for(linea in datos){
+		if(linea==salto){
+			write(tabla,file="data.temp")
+			dataframes = append(dataframes,list(read.table("data.temp")))
+			file.remove("data.temp")
+			tabla = NULL
+		} else{
+			tabla = c(tabla,linea)
+		}
+	}
+	if(!is.null(tabla)){
+		write(tabla,file="data.temp")
+		dataframes = append(dataframes,list(read.table("data.temp")))
+		file.remove("data.temp")
+	}
+
+	dataframes
+}
+
+
+# Lectura del fichero muestra4.txt
+muestras <- muestra.leer("muestra4.txt")
+muestras
+@
+A continuación, realizamos el cálculo de la media tanto para los valores de $\bar{x}$ como para los valores de $\bar{y}$:
+
+\textbf{Primera muestra}
+<<echo = false>>= 
+cat("Media de x: ", mean(muestras[[1]][,1]))
+cat("Media de y: ", mean(muestras[[1]][,2]))
+@
+
+\textbf{Segunda muestra}
+<<echo = false>>= 
+cat("Media de x: ", mean(muestras[[2]][,1]))
+cat("Media de y: ", mean(muestras[[2]][,2]))
+@
+
+\textbf{Tercera muestra}
+<<echo = false>>= 
+cat("Media de x: ", mean(muestras[[3]][,1]))
+cat("Media de y: ", mean(muestras[[3]][,2]))
+@
+
+\textbf{Cuarta muestra}
+<<echo = false>>= 
+cat("Media de x: ", mean(muestras[[4]][,1]))
+cat("Media de y: ", mean(muestras[[4]][,2]))
+@
+
+Como podmeos comprobar, las medias para las cuatro muestras son prácticamente idénticas.
+Una vez calculadas las medias, vamos a analizar el grado de dependencia entre la variable dependiente (Y)
+y la variable independiente (X), a través del cálculo de la \textbf{Covarianza} (\textit{$S_{xy}$}):
+\begin{equation*}
+S_{xy} = \frac{\sum_{i=1}^{n} x_i y_i}{n} - \bar{x}\bar{y} = \frac{\sum_{i=1}^{n} (x_i-\bar{x}) (y_i-\bar{y})}{n}
+\end{equation*}
+
+Para realizar el cálculo de la \textbf{Covarianza}, creamos una función denominada \textit{covarianza},
+en la que resolvemos la ecuación anterior para cada una de las muestras:
+<<>>=
+# Covarianza
+covarianza <- function(x,y){
+  (sum(x*y)/length(x))-(mean(x)*mean(y))
+}
+@
+\newpage
+\textbf{Primera muestra}
+<<echo = false>>= 
+cat("Covarianza primera muestra: ", covarianza(muestras[[1]][,1],muestras[[1]][,2]))
+@
+
+\textbf{Segunda muestra}
+<<echo = false>>= 
+cat("Covarianza segunda muestra: ", covarianza(muestras[[2]][,1],muestras[[2]][,2]))
+@
+
+\textbf{Tercera muestra}
+<<echo = false>>= 
+cat("Covarianza tercera muestra: ", covarianza(muestras[[3]][,1],muestras[[3]][,2]))
+@
+
+\textbf{Cuarta muestra}
+<<echo = false>>= 
+cat("Covarianza cuarta muestra: ", covarianza(muestras[[4]][,1],muestras[[4]][,2]))
+@
+
+Al igual que ocurría con la media, los valores de covarianza son prácticamente iguales. Por otro lado,
+los valores obtenidos son positivos, lo que e traduce en una dependencia positiva entre ambas variables.
+
+Dado que la covarianza resulta muy difícil de poder analizar, debemos utilizar otra medida de cálculo de
+la dependencia, concretamente la \textbf{Correlación}:
+
+\begin{equation*}
+r_{xy} = \frac{S_{xy}}{S_x S_y}
+\end{equation*}
+
+Donde $S_x$ y $S_y$ son las \textbf{Desviaciones típicas de X e Y}, respectivamente.
+
+Para el cálculo de la \textbf{Correlación}, crearemos una función denominada \textit{Correlacion},
+la cual se apoya en una función para el cálculo de las \textbf{Desviaciones típicas}:
+
+<<>>=
+# Varianza iterativa
+varianza <- function(vector){
+  media = mean(vector)
+  suma=0
+  for(i in 1:length(vector)){
+    suma = suma + (as.numeric(vector[i])-media)^2
+  }
+  suma/length(vector)
+}
+
+# Desviacion tipica iterativa
+desviacion.tipica <- function(vector){
+  sqrt(varianza(vector))
+}
+
+# Correlacion
+correlacion <- function(x,y){
+  covarianza(x,y)/(desviacion.tipica(x)*desviacion.tipica(y))
+}
+@
+
+\textbf{Primera muestra}
+<<echo = false>>= 
+cat("Correlacion primera muestra: ", correlacion(muestras[[1]][,1],muestras[[1]][,2]))
+@
+
+\textbf{Segunda muestra}
+<<echo = false>>= 
+cat("Correlacion segunda muestra: ", correlacion(muestras[[2]][,1],muestras[[2]][,2]))
+@
+\newpage
+\textbf{Tercera muestra}
+<<echo = false>>= 
+cat("Correlacion tercera muestra: ", correlacion(muestras[[3]][,1],muestras[[3]][,2]))
+@
+
+\textbf{Cuarta muestra}
+<<echo = false>>= 
+cat("Correlacion cuarta muestra: ", correlacion(muestras[[4]][,1],muestras[[4]][,2]))
+@
+
+Tal y como pudimos comprobar en el cálculo de la \textbf{Covarianza}, los valores de \textbf{Correlación}
+obtenidos son cercanos a 1, aunque con un valor bajo. Los valores están relacionados linealmente, pero
+comprobemoslo relaizando la regresión y sus posteriores análisis.
+
+Una vez obtenidos los valores de correlación y desviación típica, calculamos la ecuación de la recta
+para cada muestra:
+\begin{align*}
+ & y = bx + a \\
+ \textup{Donde} \; & b = \frac{S_{xy}}{S^2_{x}} \; \textup{y} \; a = \bar{y} - b \bar{x}  
+\end{align*}
+
+Para realizar el cálculo de la ecuación, creamos una función para el cálculo de cada término y, finalmente,
+almacenamos en un \textit{dataframe} los términos de la ecuación:
+
+<<>>=
+# Funcion de regresion
+# Encargada de obtener a y b
+regresion <- function(x,y){
+  b <- regresion.b(x,y)
+  a <- regresion.a(x,y,b)
+  data.frame(a,b)
+}
+
+# Obtiene b
+regresion.b <- function(x,y){
+  covarianza(x,y)/(desviacion.tipica(x)^2)
+}
+
+# Obtiene a
+regresion.a <- function(x,y,b){
+  mean(y)-(b*mean(x))
+}
+@
+
+\textbf{Primera muestra}
+<<echo = false>>= 
+df1 <- regresion(muestras[[1]][,1],muestras[[1]][,2])
+cat("Ecuacion primera muestra")
+cat("Valor a: ", df1[1,1])
+cat("Valor b: ", df1[1,2])
+@
+
+\textbf{Segunda muestra}
+<<echo = false>>= 
+df2 <- regresion(muestras[[2]][,1],muestras[[2]][,2])
+cat("Ecuacion segunda muestra")
+cat("Valor a: ", df2[1,1])
+cat("Valor b: ", df2[1,2])
+@
+\newpage
+\textbf{Tercera muestra}
+<<echo = false>>= 
+df3 <- regresion(muestras[[3]][,1],muestras[[3]][,2])
+cat("Ecuacion segunda muestra")
+cat("Valor a: ", df3[1,1])
+cat("Valor b: ", df3[1,2])
+@
+
+\textbf{Cuarta muestra}
+<<echo = false>>= 
+df4 <- regresion(muestras[[4]][,1],muestras[[4]][,2])
+cat("Ecuacion segunda muestra")
+cat("Valor a: ", df4[1,1])
+cat("Valor b: ", df4[1,2])
+@
+
+Como podemos comprobar, para las cuatro muestras tenemos prácticamente la misma \textbf{ecuación de la recta}:
+\begin{equation*}
+y = 0.5x + 3
+\end{equation*}
+
+Una vez obtenida la ecuación de la función de regresión, debemos analizar \textit{cómo de buena es nuestra
+recta}, es decir, \textbf{analizar la relación de dispersión entre los valores de \textit{y} calculados
+con respecto a la media, así como los valores de \textit{y} iniciales con respecto a la media}, conocido
+como \textbf{análisis \textit{ANOVA}}:
+
+En primer lugar, calculamos la diferencia entre los \textbf{valores de \textit{y'} calculados y la media
+de \textit{y}}, conocido como dipsersión \textit{SSR} de los \textit{y} calculados:
+
+\begin{equation*}
+SSR = \sum_{i=1}^{n} (y'_{i} - \bar{y})^2
+\end{equation*}
+
+En segundo lugar, calculamos la diferencia entre los \textbf{valores de \textit{y} originales y la media
+de \textit{y}}, conocido como dipsersión \textit{SSy} de los \textit{y} reales:
+
+\begin{equation*}
+SSR = \sum_{i=1}^{n} (y_{i} - \bar{y})^2
+\end{equation*}
+
+Para el análisis \textit{ANOVA} de las muestra, utilizaremos una función denominada \textit{anova} con la
+que llamaremos a una misma función para el cálculo tanto \textit{SSR} como \textit{SSy}, denominada
+\textit{anova.ss}:
+<<>>=
+# Obtiene los valores de y para unos valores de x
+# de la funcion de regresion
+regresion.ycalculada <- function(x,regresion){
+  regresion$a + x*regresion$b
+}
+
+anova <- function(x,y,regresion){
+  ssr <- anova.ss(regresion.ycalculada(x,regresion),mean(y))
+  ssy <- anova.ss(y,mean(y))
+  r2 <- ssr/ssy
+  data.frame(ssr,ssy,r2)
+}
+
+# SSR y SSy dependiendo de la y (observada o calculada)
+anova.ss <- function(y,media){
+  sum((y-media)^2)
+}
+@
+
+\textbf{Primera muestra}
+<<echo = false>>= 
+df <- anova(muestras[[1]][,1],muestras[[1]][,2], df1 )
+cat("ANOVA primera muestra")
+cat("SSR: ", df[1,1])
+cat("SSy: ", df[1,2])
+cat("r2: ", df[1,3])
+@
+
+\textbf{Segunda muestra}
+<<echo = false>>= 
+df <- anova(muestras[[2]][,1],muestras[[2]][,2], df2 )
+cat("ANOVA segunda muestra")
+cat("SSR: ", df[1,1])
+cat("SSy: ", df[1,2])
+cat("r2: ", df[1,3])
+@
+
+\textbf{Tercera muestra}
+<<echo = false>>= 
+df <- anova(muestras[[3]][,1],muestras[[3]][,2], df3 )
+cat("ANOVA tercera muestra")
+cat("SSR: ", df[1,1])
+cat("SSy: ", df[1,2])
+cat("r2: ", df[1,3])
+@
+
+\textbf{Cuarta muestra}
+<<echo = false>>= 
+df <- anova(muestras[[4]][,1],muestras[[4]][,2], df4 )
+cat("ANOVA cuarta muestra")
+cat("SSR: ", df[1,1])
+cat("SSy: ", df[1,2])
+cat("r2: ", df[1,3])
+@
+
+En el caso de las muestras anteriores, la correlación cuadrada es muy baja. Esto nos indica que nuestro
+ajuste no es demasiado bueno.
+
+Representaremos ahora gráficamente tanto los diagramas de dispersión como las 4 rectas de regresión obtenidas
+en cada una de las muestras. Para ello, utilizaremos la siguiente función:
+
+<<>>=
+# Funcion encargada de realizar las 4 regresiones lineales y
+# mostrarlas en una misma ventana (diagrama de dispersion y recta
+# de ajuste).
+mostrar.regresion <- function(ruta,sep=" ",salto="",header=FALSE){
+  dataframe <- muestra.leer(ruta,sep,salto,header)
+  par(mfrow=c(2,2))
+  for (i in 1:length(dataframe)){
+    data <- dataframe[[i]]
+    regresion <- lm(Y~X,data = data)
+    main <- paste("Muestra ",i)
+    plot(data$X,data$Y,xlim=c(0,20),ylim=c(0,14),xlab='x', ylab='y', main = main)
+    abline(regresion,col='red')
+  }
+}
+@
+\newpage
+\begin{figure}[h!]
+\centering
+<<echo=false,fig=true,width=11,height=11>>=
+mostrar.regresion("muestra4.txt")
+@
+\caption{Funciones de regresión}
+\end{figure}
+
+Si observamos las gráficas resultantes, podemos ver que:
+\begin{itemize}
+    \item En la \textbf{muestra 1}, la relación entre los puntos podría ser lineal, pero
+	están demasiado dispersos, por lo que su correlación no es demasiado alta (apenas un 0.8) y su
+	coeficiente de correlación cuadrada es bastante bajo.\\
+    \item En la \textbf{muestra 2}, la relación entre los puntos no es lineal en absoluto. Por ello
+	su correlación es de apenas un 0.8 y su correlación cuadrada es tan baja. Sería necesario otro tipo
+	de ajuste.\\
+    \item En la \textbf{muestra 3}, se ve claramente que todos los datos mantienen una relación lineal
+	casi perfecta excepto por un punto. A causa de este la correlación y la correlación cuadrada son bajas.
+	En este caso lo mejor sería suprimir dicho punto de nuestro ajuste (habría que ver las características
+	del problema).\\
+    \item En la \textbf{muestra 4} ocurre algo similar a la muestra 3. Todos los datos excepto 1 podrían
+	ajustarse de forma casi perfecta a una recta, su relación es lineal. La razón por la que su correlación
+	y correlación cuadrada son tan bajas como las anteriores es la presencia de dicho valor extremo. Una vez
+	más, lo mejor sería intentar descartarlo a la hora de realizar el ajuste.\\
+\end{itemize}
+
+
+Por último, realizaremos un análisis del \textbf{error estándar de la estimación o desviación típica
+residual}, calculando el error estándar obtenido de los residuos, o diferencia entre los valores de
+\textit{y} observados y los valores de \textit{y} calculados empleando la función de regresión:
+
+\begin{equation*}
+S_{r} = \sqrt{\frac{\sum_{i=1}^{n} (y_i - y'_i)^2}{n}}
+\end{equation*}
+
+Para el cálculo del \textbf{Error estándar} creamos una función a la que llamaremos
+\textit{error.estandar}, en la que implementamos la ecuación anterior:
+<<>>=
+# Error estandar
+error.estandar <- function(y,regresion){
+  sqrt(sum((y-regresion.ycalculada(y,regresion))^2)/length(y))
+}
+@
+
+\textbf{Primera muestra}
+<<echo = false>>= 
+cat("Sr: ", error.estandar(muestras[[1]][,2],df1))
+@
+
+\textbf{Segunda muestra}
+<<echo = false>>= 
+cat("Sr: ", error.estandar(muestras[[2]][,2],df2))
+@
+
+\textbf{Tercera muestra}
+<<echo = false>>= 
+cat("Sr: ", error.estandar(muestras[[3]][,2],df3))
+@
+
+\textbf{Cuarta muestra}
+<<echo = false>>= 
+cat("Sr: ", error.estandar(muestras[[4]][,2],df4))
+@
+
+Los resultados obtenidos (valores de error lejanos de cero), implican \textbf{un mal ajuste de la función}.
+Efectivamente, como vimos en el análisis ANOVA, las respectivas rectas no ajustan muy bien los datos por
+las razones expuestas.
+
+Si representamos ahora gráficamente las rectas paralelas a la de ajuste a distancias \textbf{Sr} y
+\textbf{2Sr} respectivamente, podemos demostrar cómo el 95\% de los puntos están situados en la
+región comprendida entre dos líneas paralelas a la recta de regresión separadas 4 $S_r$ veces,
+2 veces a cada lado de la recta, mientras que el 66\% de los datos están separados 2 $S_r$ veces,
+una a cada lado de la recta. Para demostrarlo, utilizaremos la siguiente función:
+<<>>=
+# Funcion encargada de mostrar graficamente el error
+# estandar junto con las rectas del 95% y 66%.
+error.estandar.plot <- function(x,y,regresion){
+  sr <- error.estandar(y,regresion)
+  plot(x,y,xlim=c(0,ceiling(max(x))),ylim=c(floor(regresion$a),ceiling(max(y))),xlab='x', ylab='y', main = "Error Estándar")
+  abline(regresion$a,regresion$b,col='red')
+  
+  abline(regresion$a+sr,regresion$b,col='green')
+  abline(regresion$a-sr,regresion$b,col='green')
+  
+  abline(regresion$a+2*sr,regresion$b,col='blue')
+  abline(regresion$a-2*sr,regresion$b,col='blue')
+  legend(x="topleft",legend=c("Regresión","66%","95%"),fill=c("red","green","blue"))
+}
+@
+
+\begin{figure}[h!]
+\centering
+<<echo=false,fig=true,width=11,height=11>>=
+par(mfrow=c(2,2))
+error.estandar.plot(muestras[[1]][,1],muestras[[1]][,2], df1)
+error.estandar.plot(muestras[[2]][,1],muestras[[2]][,2], df2)
+error.estandar.plot(muestras[[3]][,1],muestras[[3]][,2], df3)
+error.estandar.plot(muestras[[4]][,1],muestras[[4]][,2], df4)
+@
+\caption{Error estándar (66 y 95 \%)}
+\end{figure}
+
+\hfill \break
+\hfill \break
+\hfill \break
+\hfill \break
+\hfill \break
+\hfill \break
+\hfill \break
+\hfill \break
+
+\subsection{Apartado 2.3: Otros algoritmos}
+Este apartado consistirá en el desarrollo de análisis de clasificación con \texttt{R} utilizando diferentes métodos de \textbf{clasificación supervisada}:
+\begin{enumerate}
+  \item \textit{Random Forest}
+  \item \textit{Regresión Logística}
+  \item \textit{Redes Neuronales}
+\end{enumerate}
+
+\subsubsection{Random Forest}
+La técnica del \textbf{Random Forest} consiste en crear varios árboles de decisión \textbf{independientes}, probados sobre conjuntos de datos aleatorios de igual distribución. Supongamos que tenemos el siguiente \textit{dataset}:
+\begin{center}
+\begin{tabular}{ c c c c}
+ edad & ingresos & sexo & casado \\
+ \hline\hline
+ 35 & 40006 & F & No \\  
+ 50 & 40000 & M & Si \\
+ 22 & 70000 & M & No \\ 
+ 28 & 50000 & F & No \\
+ 41 & 90000 & F & Si \\
+ 32 & 60000 & F & Si \\
+ 21 & 120000 & M & Si \\
+ 60 & 70000 & F & Si \\
+\end{tabular}
+\end{center}
+Durante la \textbf{fase de aprendizaje}, se crean múltiples árboles de decisión independientes, a partir de un subconjunto de los datos de entrada ligeramente distintos. Para ello, \textbf{seleccionamos aleatoriamente con reemplazamiento un porcentaje de datos de la muestra total}. Comúnmente, se incluye un segundo nivel de aleatoriedad, seleccionando una porción de atributos de forma aleatoria.
+
+Por tanto, cada árbol es construido mediante el siguiente algoritmo:
+\begin{enumerate}
+  \item Sea \textit{N} el número de filas del \textit{dataset} y \textit{M} el número total de atributos.
+  \item Sea \textit{m} el número de atributos de entrada empleado para la construcción de un nodo del árbol de decisión, donde \textit{m} $\leq$ \textit{M}.
+  \item Se elige un conjunto de entrenamiento para cada árbol, usando el resto de datos no utilizados para calcular el error.
+  \item Para cada nodo, elegimos aleatoriamente \textit{m} filas para realizar la decisión.
+\end{enumerate}
+
+Supongamos que creamos un total de tres árboles. Cada uno de ellos utilizará un subconjunto aleatorio de los datos, utilizando en este caso todas las columnas:
+
+\begin{table}[!htb]
+\tiny\setlength{\tabcolsep}{1pt}
+\begin{minipage}{.33\linewidth}
+\centering
+
+\caption{Árbol 1}
+\label{tab:first_table}
+
+\medskip
+
+\begin{tabular}{ccccc}
+    \toprule
+    \textbf{Edad} & \textbf{Ingresos} & \textbf{Sexo} & \textbf{Casado} \\
+    \midrule
+    50 & $40000$ & $M$ & $Si$ \\
+    28 & $50000$ & $F$ & $No$ \\
+    32 & $60000$ & $F$ & $Si$ \\
+    21 & $120000$ & $M$ & $Si$ \\
+\end{tabular}
+\end{minipage}\hfill
+\begin{minipage}{.3\linewidth}
+\centering
+
+\caption{Árbol 2}
+\label{tab:second_table}
+
+\medskip
+
+\begin{tabular}{ccccc}
+    \toprule
+    \textbf{Edad} & \textbf{Ingresos} & \textbf{Sexo} & \textbf{Casado} \\
+    \midrule
+    35 & $40006$ & $F$ & $No$ \\
+    28 & $50000$ & $F$ & $No$ \\
+    41 & $90000$ & $F$ & $Si$ \\
+    21 & $120000$ & $M$ & $Si$ \\
+\end{tabular}    
+\end{minipage}\hfill
+\begin{minipage}{.3\linewidth}
+\centering
+
+\caption{Árbol 3}
+\label{tab:third_table}
+
+\medskip
+
+\begin{tabular}{ccccc}
+    \toprule
+    \textbf{Edad} & \textbf{Ingresos} & \textbf{Sexo} & \textbf{Casado} \\
+    \midrule
+    22 & $70000$ & $M$ & $No$ \\
+    28 & $50000$ & $F$ & $No$ \\
+    41 & $90000$ & $F$ & $Si$ \\
+    60 & $70000$ & $F$ & $Si$ \\
+\end{tabular}    
+\end{minipage} 
+\end{table}
+
+\newpage
+Una vez que tengamos los árboles, la siguiente fase (\textbf{clasificación}), evalúa cada árbol de forma independiente. Una vez construidos y optimizados, la predicción final del bosque será una \textbf{media de los árboles construidos}.
+Veamos un ejemplo de ejecución con la \textbf{clasificación de la calidad de un diamante} (\textit{Fair, Good, Very Good, Premium, Ideal}). \footnote{\url{https://www.kaggle.com/shivam2503/diamonds/download}}:
+\begin{itemize}
+  \item Anchura del diamante (\textit{carat})
+  \item Calidad del diamante (\textit{cut})
+  \item Color del diamante (\textit{color})
+  \item Claridad del diamante (\textit{clarity})
+  \item Porcentaje de altura del diamante (\textit{depth})
+  \item Porcentaje de anchura del diamante (\textit{table})
+  \item Precio del diamante (\textit{price})
+  \item Altura en mm (\textit{x})
+  \item Anchura en mm (\textit{y})
+  \item Profundidad en mm (\textit{z})
+\end{itemize}
+
+Inicialmente, leemos el fichero \textit{.csv}. Como el fichero original contiene 54.000 filas, vamos a utilizar un subconjunto, con un total de 500 filas, mediante el paquete \textit{dplyr} \footnote{\url{https://www.rdocumentation.org/packages/dplyr/versions/0.7.8}}, el cual nos permite realizar consultas a un dataframe similares a una consulta \texttt{SQL}:
+<<>>=
+diamonds <- read.csv("diamonds.csv", sep = ",")
+
+if(!require(dplyr)){
+  install.packages("dplyr")
+  require(dplyr)
+}
+#Seleccionamos las 500 primeras filas, similar a:
+#SELECT * FROM diamonds LIMIT 500
+diamonds_reduce <- diamonds %>% head(500)
+diamonds_reduce %>% head(5)
+@
+\newpage
+Como podemos comprobar a partir de la ejecución anterior, existe una columna que enumera las filas del \textit{dataframe}, por lo que debemos eliminarla. Para ello, indicamos el número de columna a eliminar:
+<<>>=
+#Eliminamos la primera columna (X)
+diamonds_reduce <- diamonds_reduce[-1]
+diamonds_reduce %>% head(5)
+@
+
+Una vez eliminada la columna, vamos a crear un \textit{randomForest}. Para ello utilizaremos la función \textit{randomForest} disponible en la librería \textit{randomForest} \footnote{\url{https://cran.r-project.org/web/packages/randomForest/randomForest.pdf}}. Por defecto, el número de árboles aleatorios generados son 500, aunque se pueden modificar con el parámetro \textit{ntree}.
+<<>>=
+if(!require(randomForest)){
+  install.packages("randomForest")
+  require(randomForest)
+}
+#Elegimos la calidad del diamante (cut)
+#como clasificador
+rf <- randomForest(cut ~.,diamonds_reduce)
+@
+
+Para analizar el contenido del árbol, utilizaremos la función \textit{getTree}. Por defecto, de todos los árboles construidos muestra el primero. Si queremos mostrar cualquier otro, añadimos el parámetro \textit{k} a la función:
+<<>>=
+#getTree(rf, k = 1), por defecto
+getTree(rf) %>% head(10)
+@
+
+La función \textit{getTree} nos muestra un \textit{dataframe}, cuyo número de filas corresponde con el número de nodos del árbol:
+<<>>=
+nrow(getTree(rf))
+@
+
+\newpage
+Analicemos en detalle cada una de las filas del \textit{dataframe}:
+
+\begin{itemize}
+  \item \textit{left daughter}: por cada nodo indica en qué fila se encuentra el nodo hijo izquierdo (si el nodo es terminal, \textit{left daughter} = 0).
+  \item \textit{right daughter}: por cada nodo indica en qué fila se encuentra el nodo hijo derecho (si el nodo es terminal, \textit{right daughter} = 0).
+  \item \textit{split var}: indica qué variable se ha empleado para dividir el nodo en sus correspondientes nodos hijos (0 si se trata de un nodo terminal). En el primer nodo, se ha empleado la columna 5, es decir, el atributo \textit{depth}.
+  \item \textit{split point}: indica dónde se ha producido la mejor partición.
+  \item \textit{status}: indica si el nodo es terminal (-1) o no (1).
+  \item \textit{prediction}: indica la predicción para cada nodo, 0 si se trata de un nodo terminal.
+\end{itemize}
+
+Una vez construidos los árboles, vamos a intentar predecir la calidad de 5 muestras del \textit{dataframe} original:
+<<>>=
+#Seleccionamos filas con diferentes calidades
+diamonds_test <- diamonds[c(501,502,505,511,515),]
+#Eliminamos la columna X que cuenta el numero de fila
+diamonds_test <- diamonds_test[-1]
+diamonds_test
+@
+
+A continuación, eliminamos los valores de la columna \textit{cut}:
+<<>>=
+diamonds_test$cut <- NA
+diamonds_test
+@
+
+Para realizar la predicción, utilizaremos la función \textit{predict}, en el que indicaremos como parámetros el \textit{Random Forest} creado, así como el \textit{dataframe} de prueba:
+<<>>=
+predict(rf, newdata = diamonds_test)
+@
+
+Como podemos comprobar, ha predicho correctamente tres de las cinco muestras. Si aumentásemos el número de datos de entrenamiento, lo más probable es que el porcentaje de aciertos aumente.
+
+Para mostrar gráficamente un árbol del \textit{Random Forest}, utilizaremos el paquete \textit{reprtree}. Para instalarlo, ejecutamos la siguiente línea de comandos:
+<<>>=
+if(!require(reprtree)){
+  options(repos='http://cran.rstudio.org')
+  have.packages <- installed.packages()
+  cran.packages <- c('devtools','plotrix','randomForest','tree')
+  to.install <- setdiff(cran.packages, have.packages[,1])
+  if(length(to.install)>0) install.packages(to.install)
+
+    library(devtools)
+  if(!('reprtree' %in% installed.packages())){
+    install_github('araastat/reprtree')
+  }
+  for(p in c(cran.packages, 'reprtree')) eval(substitute(library(pkg), list(pkg=p)))
+  require(reprtree)
+}
+@
+
+Una vez descargada e importada la librería, vamos a representar gráficamente uno de los árboles del \textit{Random Forest}. Dado que el árbol generado anteriormente presenta una gran cantidad de nodos, vamos a representar un árbol utilizando 100 datos de entrenamiento:
+
+\begin{figure}[h!]
+\centering
+<<echo=false,fig=true,width=25,height=20>>=
+#Para las reglas de asociacion obtenidas en el algoritmo a priori:
+diamonds_2 <- diamonds %>% head(100)
+diamonds_2 <- diamonds_2[-1]
+model <- randomForest(cut ~ ., data=diamonds_2)
+reprtree:::plot.getTree(model)
+@
+\caption{Random Forest}
+\end{figure}
+
+\newpage
+\subsubsection{Logistic Regression}
+Se trata de un tipo específico de \textbf{análisis de regresión} con el que se pretende \textbf{precedir el resultado de variables categóricas}, es decir, variables que presentan un número limitado de posibles valores (principal diferencia con respecto a la \textbf{regresión lineal}), en función del resto de variables independientes.
+
+A modo de ejemplo vamos a \textbf{predecir si un pasajero embarcado en el Titanic pudo o no sobrevivir}. \footnote{\url{https://www.kaggle.com/jeremyd/titanic-logistic-regression-in-r/notebook}} Comenzamos con la fase de entrenamiento, utilizando para ello el dataset \textit{train\_titanic.csv}:
+
+<<>>=
+train_titanic <- read.csv("train_titanic.csv")
+#Vamos a visualizar los 10 primeros datos
+#mediante la libreria dplyr
+train_titanic %>% head(10)
+@
+
+\begin{enumerate}
+  \item \textit{PassengerId}: id del pasajero.
+  \item \textit{PClass}: clase en la que viajaba el pasajero (primera, segunda o tercera).
+  \item \textit{Name}: nombre del pasajero.
+  \item \textit{Sex}: sexo del pasajero.
+  \item \textit{Age}: edad del pasajero.
+  \item \textit{SibSp}: número de hermanos o parejas a bordo.
+  \item \textit{Parch}: número de padres o hijos a bordo.
+  \item \textit{Ticket}: id del billete.
+  \item \textit{Fare}: precio pagado por el billete.
+  \item \textit{Cabin}: número de la cabina.
+  \item \textit{Embarked}: puerto donde embarcó el pasajero (C - Cherbourg, S - Southampton, Q - Queenstown).
+\end{enumerate}
+
+Una vez cargado el fichero, eliminamos aquellos campos no relevantes para la regresión, tales como \textit{PassengerId}, \textit{Name}, \textit{Ticket}, \textit{Cabin} y \textit{Embarked}:
+<<>>=
+#Eliminamos las columnas anteriores
+train_titanic <- train_titanic[c(-1,-4,-9,-11,-12)]
+@
+\newpage
+A continuación, debemos eliminar filas con algún campo a \textit{NA}. Para ello utilizamos la función \textit{na.omit()}:
+<<>>=
+sum(is.na(train_titanic))
+
+#Eliminamos las filas con campos a NA
+train_titanic <- na.omit(train_titanic)
+sum(is.na(train_titanic))
+@
+
+Una vez eliminadas dichas filas, debemos pasar a formato \textbf{numérico} el campo \textit{Sex}: 2 para el hombre y 1 para la mujer. A continuación, visualizamos la matriz de correlación mediante la función \textit{cor}, disponible en el paquete \textit{stats}:
+<<>>>=
+train_titanic$Sex = as.numeric(train_titanic$Sex)
+
+#Matriz de correlacion
+cor(train_titanic)
+@
+
+Como queremos predecir si un pasajero o no sobrevivió, nos fijamos en la primera fila de la matriz. Tal y como podemos observar, el campo Supervivencia depende en mayor medida del camarote en el que se encontrará el pasajero (\textit{Pclass}), el sexo del pasajero y, en menor medida, del precio del billete.
+
+A continuación, creamos nuestro modelo de \textbf{regresión logística} mediante la función \textit{glm}, disponible en el paquete \textit{stats}:
+<<>>=
+#La regresion logistica analiza los datos mediante una distribucion
+#binomial, por lo que debemos indicarlo en el campo family
+titanic_lr <- glm(Survived~., data = train_titanic, family = binomial)
+titanic_lr
+summary(titanic_lr)
+@
+
+Como podemos comprobar obtenemos la siguiente función de regresión:
+\begin{equation*}
+y = -1.24225 \times Pclass -2.63484 \times Sex -0.04395 \times Age -0.37575 \times SibSp -0.06194 \times Parch + 0.00216 \times Fare
+\end{equation*}
+
+Una vez terminada la fase de \textbf{entrenamiento}, procedemos con la fase de prueba. Para ello utilizaremos un \textit{dataset} aparte, al que hemos llamado \textit{test\_titanic.csv}:
+
+<<>>=
+#En primer lugar leemos el fichero csv
+test_titanic <- read.csv("test_titanic.csv")
+#Creamos un dataframe donde nos quedaremos con los
+#ids de filas sin valores a NA para mas adelante
+id <- na.omit(test_titanic) %>% select(PassengerId)
+#Eliminamos las columnas que no vayamos a utilizar
+test_titanic <- test_titanic[c(-1,-3,-8,-10,-11)]
+#Eliminamos posibles filas con campos a NA
+test_titanic <- na.omit(test_titanic)
+#Cambiamos el campo Sex a tipo numeric
+test_titanic$Sex <- as.numeric(test_titanic$Sex)
+@
+
+Para realizar la predicción, utilizaremos la función \textit{predict}:
+<<>>=
+#Response para regresiones de tipo lineal
+predictTest <- predict(titanic_lr, type = "response", newdata = test_titanic)
+
+#Añadimos una nueva columna al dataframe test_titanic, indicando si el
+#pasajero sobrevivio o no al hundimiento. Para limitar los posibles valores
+#a 0 o 1, si el valor predicho es mayor o igual a 0.5 lo ponemos a 1,
+#mientras que cualquier valor inferior a 0.5 lo limitamos a 0
+test_titanic$Survived <- as.numeric(predictTest >= 0.5)
+
+#Analizamos el campo Survived
+table(test_titanic$Survived)
+@
+
+Como podemos comprobar, según nuestro modelo de predicción, 134 personas sobrevivieron al hundimiento, mientras que 197 no.
+
+Finalmente, vamos a comprobar la precisión del modelo. Para ello, \textit{Kaggle} dispone de un fichero \textit{csv} con el campo \textit{Survived} para los pasajeros del fichero \textit{test\_titanic.csv}. Vamos a comprobar el porcentaje de aciertos. Dado que el fichero original contiene filas a \textit{NA}, nos quedaremos con aquellas filas del fichero cuyos ids correspondan con filas con campos completos en \textit{test\_titanic.csv}:
+
+<<>>=
+real_test_data <- read.csv("real_data.csv")
+real_test_data <- subset(real_test_data, (real_test_data$PassengerId %in% id$PassengerId))
+rbind(table(test_titanic$Survived), table(real_test_data$Survived))
+@
+
+\textbf{Como podemos observar, de un total de 204 fallecidos, el sistema ha predicho correctamente 197 (7 falsos positivos), mientras que de un total de 127 supervivientes el sistema ha predicho 134 (7 falsos negativos)}.
+\newpage
+
+\subsubsection{Redes Neuronales (\textit{ANN})}
+Las Redes Neuronales (conocidas actualmente en el campo empresarial como \textit{Deep Learning}), son un modelo computacional inspirado en su homólogo biológico: consisten en un conjunto de unidades elementales, denominadas \textbf{neuronas}, conectadas entre sí para transmitir información, generando unos valores a la salida de la red.
+Cada pareja de neuronas está conectada por medio de \textbf{enlaces}. Por cada enlace, el valor a la salida de la neurona es multiplicado por un valor denominado \textbf{peso}, así como posibles funciones limitadoras o \textbf{umbral} que modifiquen el valor a la salida.
+Generalmente, una red se divide en tres capas:
+\begin{enumerate}
+  \item \textbf{Capa de entrada}: capa inicial en el que se produce la entrada de los datos.
+  \item \textbf{Capa oculta}: la clave de las redes neuronales es el \textbf{aprendizaje automático}, por lo que la idea es reducir el error (en el caso de las redes neuronales una \textbf{función de pérdida}) que evalúa en su total la red. Para ello, a lo largo de la capa intermedia se produce la \textbf{actualización de los valores de peso}, mediante un proceso conocido como \textbf{propagación hacia atrás} o \textit{backpropagation}.
+  \item \textbf{Capa de salida}: capa en la que se produce la salida de las predicciones obtenidas a partir de los datos de entrada.
+\end{enumerate}
+
+Para este tipo de clasificación, vamos a utilizar un \textit{dataset} con el \textbf{historial clínico de pacientes con cáncer de mama} \footnote{\url{https://www.kaggle.com/anacoder1/wisc-bc-data/download}}, en el que se identifican dos tipos de diagnósticos:
+\begin{itemize}
+  \item Beningno (B): tumor que no se extiende a otras partes del cuerpo, por lo que no presenta graves consecuencias para el organismo.
+  \item Maligno (M): tumor que invade otros tejidos del organismo, extendiéndose a otras partes del cuerpo.
+\end{itemize}
+
+Por tanto, el objetivo consistirá en diseñar una red neuronal que permita \textbf{clasificar y predecir el diagnóstico de los pacientes}. En primer lugar, comenzamos con la fase de entrenamiento, leyendo el fichero \textit{csv} con los datos a analizar:
+
+\footnotesize{
+<<>>=
+  breast_cancer <- read.csv("wisc_bc_data.csv")
+  #Vamos a visualizar los 5 primeros datos para
+  #ver su contenido, utilizando la libreria dplyr
+  require(dplyr)
+  breast_cancer %>% head(5)
+  #Eliminamos la columna id
+  breast_cancer <- breast_cancer[-1]
+@
+}
+
+Como podemos comprobar, junto con el diagnóstico final, el \textit{dataset} contiene características morfólogicas del pecho, tales como \textbf{perímetro}, \textbf{área}, \textbf{suavidad}, \textbf{concavidad}, \textbf{simetría} etc.
+Una vez extraídos los datos, vamos a dividir el conjunto en dos partes: \textbf{datos de entrenamiento} (70 \% de los datos originales) y \textbf{datos de validación} (30 \% restante). Mediante la función \textit{sample} tomamos una muestra del tamaño especificado sobre el \textit{dataframe}, devolviendo como resultado las filas resultantes:
+<<>>=
+#Datos de entrenamiento 70%
+breast_cancer.Train <- breast_cancer[sample(nrow(breast_cancer), nrow(breast_cancer)*0.70), ]
+
+#Datos de validacion 30%
+breast_cancer.Val <- breast_cancer[setdiff(1:nrow(breast_cancer), breast_cancer.Train), ]
+@
+<<>>=
+#Veamos alguno de los datos
+#Entrenamiento
+breast_cancer.Train[1:3, ]
+
+@
+\newpage
+<<>>=
+#Validacion
+breast_cancer.Val[1:3, ]
+@
+
+A continuación, vamos a crear la red neuronal. Para ello, añadimos el paquete para Redes Neuronales Artificiales (\textit{ANN}), llamado \textit{neuralnet}:
+<<>>=
+if (!require(neuralnet)){
+	install.packages("neuralnet")
+	require(neuralnet)
+}
+@
+
+A continuación, realizamos el \textbf{proceso de entrenamiento de la red}, mediante la función \textit{neuralnet}:
+
+\begin{itemize}
+  \item \textbf{Fórmula}: en nuestro caso será \textit{diagnosis = resto\_de\_campos.}
+  \item \textbf{Datos de entrenamiento}
+  \item \textbf{Número de neuronas en la capa oculta} (\textit{size}): en nuestro caso, la establecemos a 10.
+\end{itemize}
+
+<<>>=
+nn <- neuralnet(diagnosis ~., data = breast_cancer.Train, hidden = c(10), linear.output = FALSE, threshold = 0.01)
+@
+
+Una vez entrenada la red neuronal, vamos a probarla con los datos de validación. Para ello, creamos un nuevo \textit{dataframe} en el que eliminamos la columna \textit{diagnosis}:
+<<>>=
+breast_cancer.Test2 <- breast_cancer.Val[-1]
+@
+
+Una vez eliminado, realizamos la predicción de los datos de validación, utilizando para ello la función \textit{compute}, indicando como parámetros la red neuronal anteriormente entrenada, así como los datos de validación:
+<<>>=
+nn.results = compute(nn, breast_cancer.Test2)
+@
+
+Una vez realizada la predicción, creamos una \textbf{matriz de confusión} con la que podremos analizar la precisión de la red neuronal:
+<<>>=
+results <- data.frame(actual = as.factor(breast_cancer.Val$diagnosis), prediction = nn.results$net.result)
+#Visualizamos las 10 primeras filas
+results[1:10,]
+@
+
+Analizando la \textbf{matriz de confusión}, para el paciente 1 (al que se le ha diagnosticado un tumor benigno), la red neuronal predeciría un tumor de tipo benigno en el 100 \% de las ocasiones, mientras que predeciría un tumor de tipo maligno en el 8.026981e-12 de las ocasiones, es decir, prácticamente acertaría con el diagnóstico. Por otro lado, para el paciente 8 (al que se le ha diagnosticado un tumor maligno), la red neuronal predeciría un tumor de tipo benigno en el 5.343009e-09 de las ocasiones, mientras que para el diagnóstico de un tumor maligno acertaría al 100 \% prácticamente.
+\end{document}

@@ -1,0 +1,1646 @@
+\documentclass [a4paper] {article}
+\usepackage[hidelinks]{hyperref}
+\usepackage[spanish,activeacute]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{color}
+\usepackage{qtree}
+
+\setlength{\parindent}{0pt}
+\textwidth = 500pt
+\hoffset = -70pt
+
+\title{\textbf{Fundamentos de la Ciencia de Datos Práctica 2}}
+\author{
+	Fernández Díaz, Daniel.\\
+	Cano Díaz, Francisco.\\
+	Fernández Hernández, Alberto.\\
+}
+
+\date{22 de octubre del 2019}
+\usepackage{Sweave}
+\begin{document}
+\maketitle
+
+\section{Apartado 1}
+
+El primer apartado consistirá en realizar un análisis de \textbf{asociación} de Datos con \texttt{R}, utilizando la muestra vista en teoría:
+\newline
+
+\hfil \textit{\{Pan, Agua, Leche, Naranjas\}, \{Pan, Agua, Café, Leche\},} \par
+\hfil \textit{\{Pan, Agua, Leche\}, \{Pan, Café, Leche\}, \{Pan, Agua\}, \{Leche\}} \par \leavevmode
+
+Para resolverlo, emplearemos el algoritmo \textbf{\textit{a priori}}, ubicado en el paquete \textbf{\textit{arules}}. Por defecto, este paquete no se encuentra instalado 
+en el entorno de \texttt{R}, por lo que debemos descargarlo e instalarlo. Para ello, debemos seguir los siguientes pasos:
+\begin{enumerate}
+    \item En primer lugar, nos dirigimos a la página del proyecto \textbf{\textit{CRAN}}, donde seleccionaremos la opción \textbf{\textit{packages}}.
+    \item A continuación, seleccionamos \textbf{\textit{Table of available packages, sorted by name}} con la que podremos ver todos los paquetes disponibles ordenados por nombre.
+    \item Seleccionamos el paquete \textbf{\textit{arules}}.
+    \item Una vez situados en la página del paquete, debemos destacar varios campos:
+        \begin{itemize}
+            \item \textbf{Archivos binarios}: para la instalación de la librería.
+            \item \textbf{Manual de referencia}: con toda la información sobre las funciones del paquete.
+            \item \textbf{URL}: repositorio en \textbf{\textit{GitHub}} del paquete.
+        \end{itemize}
+    \item Descargamos el archivo \textit{.zip} (preferiblemente la opción \textbf{\textit{release}}).
+    \item Una vez descargado, creamos un directorio en \textit{C:}, llamado \textit{tmp}, donde añadiremos el archivo \textit{.zip}.
+\end{enumerate}
+
+\hfil \textbf{Finalmente, ejecutamos el siguiente comando:} \par
+\begin{Schunk}
+\begin{Sinput}
+> #Instalamos el paquete
+> install.packages("C:\\tmp\\arules_1.6-4.zip", repos=NULL)
+\end{Sinput}
+\end{Schunk}
+\begin{Schunk}
+\begin{Sinput}
+> #Finalmente, lo importamos con library
+> library(arules)
+\end{Sinput}
+\end{Schunk}
+
+Una vez importado el paquete, debemos introducir las muestras en \texttt{R}. Para ello convertiremos las muestras en una matriz de unos y ceros:
+
+\newpage
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+         & Pan & Agua & Cafe & Leche & Naranjas \\ \hline
+suceso 1 & 1   & 1    & 0    & 1     & 1        \\ \hline
+suceso 2 & 1   & 1    & 1    & 1     & 0        \\ \hline
+suceso 3 & 1   & 1    & 0    & 1     & 0        \\ \hline
+suceso 4 & 1   & 0    & 1    & 1     & 0        \\ \hline
+suceso 5 & 1   & 1    & 0    & 0     & 0        \\ \hline
+suceso 6 & 0   & 0    & 0    & 1     & 0        \\ \hline
+\end{tabular}
+\end{center}
+
+Para crear una matriz en \texttt{R} utilizaremos la función \textbf{\textit{Matrix}}, la cual ya disponemos en nuestro \textbf{\textit{workspace}} 
+al importar la librería \textbf{\textit{arules}}:
+\begin{Schunk}
+\begin{Sinput}
+> muestra <- Matrix(c(1,1,0,1,1,1,1,1,1,0,1,1,0,1,0,1,0,1,1,0,1,1,0,0,0,0,0,0,1,0),6,5,
++ byrow=T,dimnames=list(c("suceso1","suceso2","suceso3","suceso4","suceso5","suceso6"),
++ c("Pan","Agua","Cafe","Leche","Naranjas")),sparse=T)
+> muestra
+\end{Sinput}
+\begin{Soutput}
+6 x 5 sparse Matrix of class "dgCMatrix"
+        Pan Agua Cafe Leche Naranjas
+suceso1   1    1    .     1        1
+suceso2   1    1    1     1        .
+suceso3   1    1    .     1        .
+suceso4   1    .    1     1        .
+suceso5   1    1    .     .        .
+suceso6   .    .    .     1        .
+\end{Soutput}
+\end{Schunk}
+
+Una vez creada la matriz, vamos a convertirla en una matriz de tipo \textit{binaria}, únicamente con entradas \textbf{TRUE},\textbf{FALSE}.
+Para ello, utilizaremos la función \textbf{\textit{nsparseMatrix}}, para convertirla en una matriz de tipo binaria:
+\begin{itemize}
+    \item | => valores a 1
+    \item . => valores a 0
+\end{itemize}
+
+\begin{Schunk}
+\begin{Sinput}
+> muestrangCMatrix <- as(muestra, "nsparseMatrix")
+> muestrangCMatrix
+\end{Sinput}
+\begin{Soutput}
+6 x 5 sparse Matrix of class "ngCMatrix"
+        Pan Agua Cafe Leche Naranjas
+suceso1   |    |    .     |        |
+suceso2   |    |    |     |        .
+suceso3   |    |    .     |        .
+suceso4   |    .    |     |        .
+suceso5   |    |    .     .        .
+suceso6   .    .    .     |        .
+\end{Soutput}
+\end{Schunk}
+
+A continuación, creamos la matriz traspuesta de \textbf{\textit{muestrangCMatrix}}, empleando la función \textbf{\textit{t}}:
+\begin{Schunk}
+\begin{Sinput}
+> traspuestangCMatrix <- t(muestrangCMatrix)
+> traspuestangCMatrix
+\end{Sinput}
+\begin{Soutput}
+5 x 6 sparse Matrix of class "ngCMatrix"
+         suceso1 suceso2 suceso3 suceso4 suceso5 suceso6
+Pan            |       |       |       |       |       .
+Agua           |       |       |       .       |       .
+Cafe           .       |       .       |       .       .
+Leche          |       |       |       |       .       |
+Naranjas       |       .       .       .       .       .
+\end{Soutput}
+\end{Schunk}
+\newpage
+Una vez obtenida traspuesta, debemos transformar la matriz en un tipo de datos específico para el paquete \textbf{\textit{arules}}: \textbf{transacciones}.
+Se trata de un tipo de dato específico para \textbf{\textit{Data Mining}}:
+\begin{Schunk}
+\begin{Sinput}
+> transacciones  <- as(traspuestangCMatrix, "transactions")
+> transacciones
+\end{Sinput}
+\begin{Soutput}
+transactions in sparse format with
+ 6 transactions (rows) and
+ 5 items (columns)
+\end{Soutput}
+\end{Schunk}
+
+Analizando el resultado obtenido, podemos observar que disponemos de un total de \textbf{6 muestras} y \textbf{5 sucesos individuales}.
+Si utilizamos la función \textbf{\textit{inspect}}, podemos analizar en detalle cada una de las muestras:
+\begin{Schunk}
+\begin{Sinput}
+> inspect(transacciones)
+\end{Sinput}
+\begin{Soutput}
+    items                     itemsetID
+[1] {Pan,Agua,Leche,Naranjas} suceso1  
+[2] {Pan,Agua,Cafe,Leche}     suceso2  
+[3] {Pan,Agua,Leche}          suceso3  
+[4] {Pan,Cafe,Leche}          suceso4  
+[5] {Pan,Agua}                suceso5  
+[6] {Leche}                   suceso6  
+\end{Soutput}
+\end{Schunk}
+
+Por otro lado, la función \textbf{\textit{summary}} nos proporciona un breve resumen de las transacciones:
+\begin{Schunk}
+\begin{Sinput}
+> summary(transacciones)
+\end{Sinput}
+\begin{Soutput}
+transactions as itemMatrix in sparse format with
+ 6 rows (elements/itemsets/transactions) and
+ 5 columns (items) and a density of 0.5666667 
+
+most frequent items:
+     Pan    Leche     Agua     Cafe Naranjas  (Other) 
+       5        5        4        2        1        0 
+
+element (itemset/transaction) length distribution:
+sizes
+1 2 3 4 
+1 1 2 2 
+
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  1.000   2.250   3.000   2.833   3.750   4.000 
+
+includes extended item information - examples:
+  labels
+1    Pan
+2   Agua
+3   Cafe
+
+includes extended transaction information - examples:
+  itemsetID
+1   suceso1
+2   suceso2
+3   suceso3
+\end{Soutput}
+\end{Schunk}
+Finalmente, ejecutamos el algoritmo \textbf{\textit{apriori}}, indicando como parámetros:
+\begin{itemize}
+    \item Las transacciones a procesar.
+    \item El valor de soporte (en nuestro caso, será de un 50 \%)
+    \item El valor de confianza (en nuestro caso, de un 80 \%)
+\end{itemize}
+\begin{Schunk}
+\begin{Sinput}
+> asociaciones <- apriori(transacciones, parameter=list(support=0.5, confidence=0.8))
+\end{Sinput}
+\begin{Soutput}
+Apriori
+
+Parameter specification:
+ confidence minval smax arem  aval originalSupport maxtime support minlen maxlen target   ext
+        0.8    0.1    1 none FALSE            TRUE       5     0.5      1     10  rules FALSE
+
+Algorithmic control:
+ filter tree heap memopt load sort verbose
+    0.1 TRUE TRUE  FALSE TRUE    2    TRUE
+
+Absolute minimum support count: 3 
+
+set item appearances ...[0 item(s)] done [0.00s].
+set transactions ...[5 item(s), 6 transaction(s)] done [0.00s].
+sorting and recoding items ... [3 item(s)] done [0.00s].
+creating transaction tree ... done [0.00s].
+checking subsets of size 1 2 3 done [0.00s].
+writing ... [7 rule(s)] done [0.00s].
+creating S4 object  ... done [0.00s].
+\end{Soutput}
+\begin{Sinput}
+> inspect(asociaciones)
+\end{Sinput}
+\begin{Soutput}
+    lhs             rhs     support   confidence lift count
+[1] {}           => {Leche} 0.8333333 0.8333333  1.00 5    
+[2] {}           => {Pan}   0.8333333 0.8333333  1.00 5    
+[3] {Agua}       => {Pan}   0.6666667 1.0000000  1.20 4    
+[4] {Pan}        => {Agua}  0.6666667 0.8000000  1.20 4    
+[5] {Leche}      => {Pan}   0.6666667 0.8000000  0.96 4    
+[6] {Pan}        => {Leche} 0.6666667 0.8000000  0.96 4    
+[7] {Agua,Leche} => {Pan}   0.5000000 1.0000000  1.20 3    
+\end{Soutput}
+\end{Schunk}
+
+Como podemos observar, el algoritmo \textbf{\textit{apriori}} muestra aquellas asociaciones cuyos valores tanto de \textbf{soporte} como de \textbf{confianza} 
+superan el umbral establecido al comienzo:
+\newline
+
+\hfil \textit{\{Agua, Pan\}, \{Pan, Agua\}} \par
+\hfil \textit{\{Leche, Pan\}, \{Pan, Leche\}, \{Agua, Leche, Pan\}} \par \leavevmode
+
+Por otro lado, el campo \textbf{\textit{lift}} nos indica \textbf{la proporción entre la confianza de una asociación y el soporte del segundo suceso}:
+¿Para qué se calcula este campo? Tenemos la siguiente asociación:
+
+\hfil  \begin{equation*} \{Leche\} \rightarrow \{Pan\} \end{equation*} \par \leavevmode
+\newpage
+Supongamos que la confianza de la asociación anterior es del 70 \%, es decir, sabemos que el \textbf{70 \% de las personas que compran Leche 
+compran también Pan}. Sin embargo, el soporte del segundo elemento es también del 70 \%, esto es, \textbf{el 70 \% de las personas que van a 
+comprar a un supermercado compran Pan}. Por tanto, el hecho de que el 70 \% de las ocasiones se compre Pan cuando se compra Leche 
+\textbf{no me está aportando información relevante cuando sabemos que en el 70 \% de las ocasiones se compra Pan.} 
+En conclusión: en ocasiones, valores muy altos de confianza pueden deberse a que el suceso de la derecha tenga un valor de soporte elevado:
+
+\begin{itemize}
+    \item Para valores de \textbf{\textit{lift}} mayores que 1 significa que \textbf{la probabilidad del producto de la derecha de la 
+	      asociación aumenta conforme se compra el producto de la izquierda}. La confianza nos proporciona información relevante.
+    \item Para valores de \textbf{\textit{lift}} iguales a 1 implica que la probabilidad del producto de la derecha de la asociación 
+	      no se ve afectada una vez comprados los productos de la izquierda de la asociación. Como consecuencia,
+		  \textbf{la confianza entre ambos sucesos no nos está proporcionando información relevante}.
+    \item Para valores de \textbf{\textit{lift}} menores que 1 significa que \textbf{la probabilidad del producto de la derecha de la asociación
+          disminuye conforme se compra el producto de la izquierda}. Al igual que en el primer caso, la confianza nos proporciona información relevante.
+\end{itemize}
+
+Analizando de nuevo los resultados obtenidos tras ejecutar \textbf{\textit{inspect}}:
+\begin{Schunk}
+\begin{Soutput}
+    lhs             rhs     support   confidence lift count
+[1] {}           => {Leche} 0.8333333 0.8333333  1.00 5    
+[2] {}           => {Pan}   0.8333333 0.8333333  1.00 5    
+[3] {Agua}       => {Pan}   0.6666667 1.0000000  1.20 4    
+[4] {Pan}        => {Agua}  0.6666667 0.8000000  1.20 4    
+[5] {Leche}      => {Pan}   0.6666667 0.8000000  0.96 4    
+[6] {Pan}        => {Leche} 0.6666667 0.8000000  0.96 4    
+[7] {Agua,Leche} => {Pan}   0.5000000 1.0000000  1.20 3    
+\end{Soutput}
+\end{Schunk}
+
+Podemos observar que el valor de \textbf{\textit{lift}} para la asociación \begin{equation*} \{Leche\} \rightarrow \{Pan\} \end{equation*} es de 0.96, es decir:
+\hfil \begin{equation*} lift = \dfrac{c(A_1 \rightarrow A_2)}{s(A_2)} = \dfrac{0.8}{0.8333 } = 0.96 \end{equation*} 
+\footnote{el soporte individual para el pan es de 5/6} \par \leavevmode
+
+Al ser menor que 1, \textbf{la probabilidad del producto Pan de la asociación disminuye conforme se compra Leche}, en relación al suceso individual Pan. \\
+
+En cuanto a los \textbf{resultados del algoritmo}, podemos observar que son los mismos que los obtenidos en teoría y que efectivamente si comprobasemos 
+el soporte y la confianza con la fórmula de cada una de las asociaciones nos daría el mismo porcentaje que se muestra en la tabla anterior. 
+Además, con \textbf{estas asociaciones podemos concluir} que cuando se compra Agua se compra Pan con una confianza del 100 \% o cuando se compra Agua y Leche 
+también se compra Pan con una confianza del 100 \%.
+
+\section{Apartado 2}
+
+\subsection{Apartado 2.1}
+Realizaremos un análisis de \textbf{asociación} de Datos con \texttt{R}, extrayendo los datos de un \textbf{fichero \textit{.txt}}. 
+Los datos que tenemos son los siguientes: \newline
+
+\hfil \textit{\{X, C, N, B\}, \{X, T, B, C\}, \{N, C, X\}, \{N, T, X, B\}} \par
+\hfil \textit{\{X, C, B\}, \{N\}, \{X, B, C\}, \{T, A\}} \par \leavevmode
+
+Donde X: Faros de Xenon, A: Alarma, T: Techo Solar, N: Navegador, B: Bluetooth y C: Control de Velocidad. 
+Estos son cada uno de los extras que se pueden incluir en cada coche.
+
+Lo primero que debemos hacer es leer estos datos desde un fichero \textbf{\textit{.txt}}. Para ello lo que haremos será convertir
+estas muestras en una matriz binaria. Para ello tenemos dos opciones:
+
+\subsubsection{Lectura de la matriz binaria desde el fichero \textit{.txt}}
+Leemos la siguiente matriz binaria del fichero \textit{.txt}:
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|c|c}
+\hline
+         & X & A & T & N & B & C \\ \hline
+suceso 1 & 1   & 0    & 0    & 1     & 1     & 1   \\ \hline
+suceso 2 & 1   & 0    & 1    & 0     & 1     & 1  \\ \hline
+suceso 3 & 1   & 0    & 0    & 1     & 0     & 1  \\ \hline
+suceso 4 & 1   & 0    & 1    & 1     & 1     & 0  \\ \hline
+suceso 5 & 1   & 0    & 0    & 0     & 1     & 1  \\ \hline
+suceso 6 & 0   & 0    & 0    & 1     & 0     & 0  \\ \hline
+suceso 7 & 1   & 0    & 0    & 0     & 1     & 1  \\ \hline
+suceso 8 & 0   & 1    & 1    & 0     & 0     & 0  \\ \hline
+\end{tabular}
+\end{center}
+
+Para leer el fichero \textit{.txt} utilizaremos el comando \textbf{\textit{read.table}}:
+\begin{Schunk}
+\begin{Sinput}
+> muestra <- read.table("binariaCoches.txt")
+> muestra
+\end{Sinput}
+\begin{Soutput}
+  X A T N B C
+1 1 0 0 1 1 1
+2 1 0 1 0 1 1
+3 1 0 0 1 0 1
+4 1 0 1 1 1 0
+5 1 0 0 0 1 1
+6 0 0 0 1 0 0
+7 1 0 0 0 1 1
+8 0 1 1 0 0 0
+\end{Soutput}
+\end{Schunk}
+
+Una vez leido los datos procederemos a aplicar el \textbf{Algoritmo Apriori} utilizando unas funciones que 
+nos prepararán las muestras para que puedan ser leidas correctamente por el comando \textbf{\textit{apriori}}:
+
+Primero debemos crear una función que nos convierta el \textit{dataframe} leído en una matriz utilizando el comando \textbf{\textit{Matrix}}:
+
+\newpage
+
+\begin{Schunk}
+\begin{Sinput}
+> matriz.binaria.dgC <- function(dataframe){
++ 	aux=dataframe[,1]
++ 	for(i in 2:length(colnames(dataframe))){
++ 		aux=c(aux,dataframe[,i])
++ 	}
++ 	Matrix(aux,length(rownames(dataframe)),length(colnames(dataframe)),
++ 	       byrow=F,dimnames=dimnames(dataframe),sparse=T)
++ }
+\end{Sinput}
+\end{Schunk}
+
+Después debemos convertir esa matriz en una matriz binaria utilizando la función \textbf{\textit{nsparseMatrix}}:
+\begin{Schunk}
+\begin{Sinput}
+> matriz.binaria.ngC <- function(dataframe){
++ 	as(matriz.binaria.dgC(dataframe),"nsparseMatrix")
++ }
+\end{Sinput}
+\end{Schunk}
+
+Una vez tenemos la matriz binaria, debemos hacer su traspuesta utilizando la función \textbf{\textit{t}}:
+\begin{Schunk}
+\begin{Sinput}
+> matriz.binaria.ngc.traspuesta <- function(ngCMatrix){
++ 	t(ngCMatrix)
++ }
+\end{Sinput}
+\end{Schunk}
+
+Ahora convertimos esa matriz traspuesta en transacciones, utilizando la función \textbf{\textit{transactions}}, que es el tipo de datos
+necesario para la función \textit{apriori}:
+\begin{Schunk}
+\begin{Sinput}
+> matriz.transaccion <- function(ngCMatrixTras){
++ 	as(ngCMatrixTras, "transactions")
++ }
+\end{Sinput}
+\end{Schunk}
+
+Una vez construidas todas las funciones anteriores para modelar los datos antes de pasarselos al \textbf{Algoritmo Apriori},
+ejecutaremos el algoritmo a través de la siguiente función:
+\begin{Schunk}
+\begin{Sinput}
+> algoritmo.apriori <- function(datos,soporte,confianza){
++ 	mb <- matriz.binaria.ngC(datos)
++ 	mbt <- matriz.binaria.ngc.traspuesta(mb)
++     transacciones <- matriz.transaccion(mbt)
++ 	#Al comando apriori le pasamos las transacciones, el soporte y la confianza
++ 	asociaciones <- apriori(transacciones,parameter=list(support=soporte,confidence=confianza))	
++ 	inspect(asociaciones)
++ }
+> #En nuestro caso estableceremos un soporte del 40% y una confianza del 90%
+> algoritmo.apriori(muestra,0.4,0.9)
+\end{Sinput}
+\begin{Soutput}
+Apriori
+
+Parameter specification:
+ confidence minval smax arem  aval originalSupport maxtime support minlen maxlen target   ext
+        0.9    0.1    1 none FALSE            TRUE       5     0.4      1     10  rules FALSE
+
+Algorithmic control:
+ filter tree heap memopt load sort verbose
+    0.1 TRUE TRUE  FALSE TRUE    2    TRUE
+
+Absolute minimum support count: 3 
+
+set item appearances ...[0 item(s)] done [0.00s].
+set transactions ...[6 item(s), 8 transaction(s)] done [0.00s].
+sorting and recoding items ... [4 item(s)] done [0.00s].
+creating transaction tree ... done [0.00s].
+checking subsets of size 1 2 3 done [0.00s].
+writing ... [3 rule(s)] done [0.00s].
+creating S4 object  ... done [0.00s].
+    lhs      rhs support confidence lift     count
+[1] {C}   => {X} 0.625   1          1.333333 5    
+[2] {B}   => {X} 0.625   1          1.333333 5    
+[3] {B,C} => {X} 0.500   1          1.333333 4    
+\end{Soutput}
+\end{Schunk}
+
+\subsubsection{Lectura de las muestras desde el fichero \textit{.txt}}
+Para leer las muestras directamente de un fichero \textit{.txt} es necesario:
+\begin{itemize}
+	\item No usar llave.
+	\item Cada suceso debe ir en una línea del fichero.
+	\item Cada suceso elemental debe estar separado por un espacio en blanco u otro tipo de separador.
+	\item Al final del fichero debe haber un \textit{enter}.
+\end{itemize}
+
+De esta forma el fichero nos quedaría de la siguiente forma:
+\begin{quote}
+X C N B \\
+X T B C \\
+N C X \\
+N T X B \\
+X C B \\
+N \\
+X B C \\
+T A \\
+
+\end{quote}
+
+Una vez que tenemos el fichero, nos disponemos a leerlo de la siguiente forma:
+
+\newpage
+
+\begin{Schunk}
+\begin{Sinput}
+> # Algoritmo Apriori a partir de una muestra
+> muestra.apriori <- function(ruta, sep=" ", soporte=0.5, confianza=0.8, verbose=F){
++ 	cat("___ ALGORITMO A PRIORI ________________________________________________\n\n")
++ 	datos <- muestra.leer(ruta,sep)
++ 	matriz <- muestra.procesar(datos)
++ 	if(verbose){
++ 		cat("===MATRIZ NGC DE LA MUESTRA============================================\n")
++ 		print(matriz)
++ 		cat("=======================================================================\n\n")
++ 	}
++     transacciones <- matriz.transaccion(matriz.binaria.ngc.traspuesta(matriz))
++ 	if(verbose){
++ 		cat("===TRANSACCIONES=======================================================\n")
++ 		inspect(transacciones)
++ 		cat("=======================================================================\n\n")
++ 	}
++ 	asociaciones <- apriori(transacciones,parameter=list(support=soporte,confidence=confianza))	
++ 	cat("\n===ASOCIACIONES=======================================================\n")
++ 	inspect(asociaciones)
++ 	cat("======================================================================\n\n")
++ }
+> # Leer archivo muestra:
+> # Mediante la ruta y la separacion entre sucesos elementales
+> # creamos un flujo de datos (conexion) con el fichero y volcamos
+> # la información en una variable llamada datos y luego con la funcion
+> # strsplit separamos cada linea del fichero en elementos individuales
+> # a partir del separador.
+> muestra.leer <- function(ruta,sep=" "){
++ 	con <- file(ruta, "r", blocking = FALSE)
++ 	datos <- readLines(con)
++ 	close(con)
++ 	strsplit(datos,sep)
++ }
+> # Procesar la muestra:
+> # 1. Identifica todos los sucesos elementales diferentes.
+> # 2. Obtenemos los ceros y unos que representan cada suceso.
+> # 3. Creamos la matriz a partir de los datos binarios y 
+> #    los nombres de los sucesos elementales.
+> muestra.procesar <- function(lista){
++ 	lista.elem <- muestra.obtenerElem(lista)
++ 	datos.bin <- muestra.obtenerBin(lista,lista.elem)
++ 	matriz <- muestra.matriz.ngC(datos.bin,lista.elem,length(lista),length(lista.elem))
++ }
+\end{Sinput}
+\end{Schunk}
+
+\newpage
+
+\begin{Schunk}
+\begin{Sinput}
+> # Obtener lista de sucesos elementales:
+> # A partir del txt original construye una lista
+> # formada por los sucesos elementales de la muestra.
+> muestra.obtenerElem <- function(lista.original){
++ 	lista = NULL
++ 	for(i in 1:length(lista.original)){
++ 		for(j in 1:length(lista.original[[i]])){
++ 			if(!(is.element(lista.original[[i]][j],lista))){
++ 				lista <- c(lista,lista.original[[i]][j])
++ 			}
++ 		}
++ 	}
++ 	lista
++ }
+> # Obtener lista binaria de apariciones en la muestra:
+> # A partir de los sucesos elementales revisamos para
+> # cada linea de la estructura datos si dicho suceso
+> # elemental esta presente en ese suceso de la muestra.
+> # Si esta es un 1 y si no, un 0.
+> muestra.obtenerBin <- function(datos,lista.elem){
++ 	datos.bin = NULL
++ 	for(i in 1:length(datos)){
++ 		for(j in 1:length(lista.elem)){
++ 			if(is.element(lista.elem[j],datos[[i]])){
++ 				datos.bin <- c(datos.bin,1)
++ 			} else{
++ 				datos.bin <- c(datos.bin,0)
++ 			}
++ 		}
++ 	}
++ 	datos.bin
++ }
+> # Crear la matriz ngc
+> muestra.matriz.ngC <- function(datos.bin, lista.elem, f, c){
++ 	aux <- Matrix(datos.bin,f,c,byrow=T,dimnames=list(1:f,lista.elem),sparse=T)
++ 	as(aux,"nsparseMatrix")
++ }
+\end{Sinput}
+\end{Schunk}
+
+\newpage
+
+Una vez definidas todas las funciones ejecutamos la función principal:
+\begin{Schunk}
+\begin{Sinput}
+> muestra.apriori("muestraCoche.txt",soporte=0.4,confianza=0.9,verbose=T)
+\end{Sinput}
+\begin{Soutput}
+___ ALGORITMO A PRIORI ________________________________________________
+
+===MATRIZ NGC DE LA MUESTRA============================================
+8 x 6 sparse Matrix of class "ngCMatrix"
+  X C N B T A
+1 | | | | . .
+2 | | . | | .
+3 | | | . . .
+4 | . | | | .
+5 | | . | . .
+6 . . | . . .
+7 | | . | . .
+8 . . . . | |
+=======================================================================
+
+===TRANSACCIONES=======================================================
+    items     itemsetID
+[1] {X,C,N,B} 1        
+[2] {X,C,B,T} 2        
+[3] {X,C,N}   3        
+[4] {X,N,B,T} 4        
+[5] {X,C,B}   5        
+[6] {N}       6        
+[7] {X,C,B}   7        
+[8] {T,A}     8        
+=======================================================================
+
+Apriori
+
+Parameter specification:
+ confidence minval smax arem  aval originalSupport maxtime support minlen maxlen target   ext
+        0.9    0.1    1 none FALSE            TRUE       5     0.4      1     10  rules FALSE
+
+Algorithmic control:
+ filter tree heap memopt load sort verbose
+    0.1 TRUE TRUE  FALSE TRUE    2    TRUE
+
+Absolute minimum support count: 3 
+
+set item appearances ...[0 item(s)] done [0.00s].
+set transactions ...[6 item(s), 8 transaction(s)] done [0.00s].
+sorting and recoding items ... [4 item(s)] done [0.00s].
+creating transaction tree ... done [0.00s].
+checking subsets of size 1 2 3 done [0.00s].
+writing ... [3 rule(s)] done [0.00s].
+creating S4 object  ... done [0.00s].
+
+===ASOCIACIONES=======================================================
+    lhs      rhs support confidence lift     count
+[1] {C}   => {X} 0.625   1          1.333333 5    
+[2] {B}   => {X} 0.625   1          1.333333 5    
+[3] {C,B} => {X} 0.500   1          1.333333 4    
+======================================================================
+\end{Soutput}
+\end{Schunk}
+
+\subsubsection{Conclusiones}
+Una vez \textbf{ejecutado el algoritmo} podemos ver que solo hay tres asociaciones que superan el
+umbral de soporte y confianza fijados inicialemente a 40 \% y 90 \% respectivamente.
+Por tanto de la muestra inicial \textbf{podemos deducir} que:
+\begin{itemize}
+	\item Cuando se compra el extra de Control de Velocidad se compra Faros de Xenon
+	      con una confianza del 100 \%.
+	\item Cuando se compra el extra de \textit{Bluetooth} se compra Faros de Xenon
+	      con una confianza del 100 \%.
+	\item Cuando se compra los extras de Control de Velocidad y \textit{Bluetooth} se compra Faros de Xenon
+	      con una confianza del 100 \%.
+\end{itemize}
+
+Además, el \textbf{\textit{lift}} en todas las asociaciones es mayor que uno por lo que podemos afirmar que al comprar
+los productos de la izquierda \textbf{aumenta la probabilidad} de comprar los productos de la derecha.
+
+Para demostrar la solución obtenida por \texttt{R}, vamos a resolver el problema anterior aplicando los pasos del algoritmo visto en teoría.
+\subsubsection{Planteamiento del problema}
+
+\paragraph{Paso A. Identificación de las asociaciones frecuentes. Cálculo del soporte}
+El primer paso consistirá en \textbf{analizar los sucesos elementales}, calculando su soporte y eliminando aquellos que no superen dicho umbral establecido.
+Recordemos que el soporte deberá ser \textbf{igual o superior} al 40\% y con una confianza \textbf{mayor o igual} al 80\%.
+
+\hfil \textit{Sucesos elementales} \par
+\hfil \textit{X, A, T, N, B, C} \par
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+        & Soporte\\ \hline
+X & 6/8 = 0.75 = 75 \%		  \\ \hline
+A & 1/8 = 0.125 = 12.5 \%     \\ \hline
+T & 3/8 = 0.375 = 37.5 \%     \\ \hline
+N & 4/8 = 0.50  =  50 \%      \\ \hline
+B & 5/8 = 0.625 = 62.5 \%     \\ \hline
+C & 5/8 = 0.625 = 62.5 \%     \\ \hline
+\end{tabular}
+\end{center}
+
+Como podemos observar, \textbf{sólo los sucesos elementales \textit{X, N, B y C} superar el umbral de soporte mínimo}. Como consecuencia, no estudiaremos el resto de
+sucesos elementales. De esta forma, reducimos el número de sucesos elementales a cuatro:
+
+\hfil \textbf{X,N,B y C} \par
+
+A continuación, aplicamos el \textbf{subpaso 2}, en el que comenzaremos con conjuntos de sucesos de dos dimensiones y terminaremos cuando no sea posible identificar una dimensión
+en la que haya un soporte \textbf{mayor o igual que el umbral}, mediante el algoritmo \textit{apriori-gen}. Comenzamos con la \textbf{dimensión 2}:
+Aplicamos el método \begin{equation*} F_{2-1} \times F_{2-1} = F_{1} \times F_{1} \end{equation*}.
+
+\begin{equation*} a_{i}=b_{i} \end{equation*}  
+Para \textit{i=1,2,…,k-2} primeros,es decir, en este caso tendremos k-2 = 2-2 = 0. Esto quiere decir que deben coincidir los k-2 primeros. 
+Tiene sentido ya que los sucesos elementales son únicos y no se pueden repetir.
+\begin{equation*} a_{k-1} \neq b_{k-1} \end{equation*} 
+Es decir, en este caso tendremos k-1 = 2-1 = 1. Esto quiere decir que no deben coincidir los elementos 
+\begin{equation*} a_{1} \neq b_{1} \end{equation*} 
+Entonces, siguiendo estas condiciones los conjuntos de dos dimensiones quedan de la siguiente forma:
+\\[1\baselineskip]
+
+\hfil \textbf{\{X,N\}, \{X,B\}, \{X,C\}, \{N,B\}, \{N,C\}, \{B,C\}} \par \leavevmode
+\\[1\baselineskip]
+Una vez obtenidos todas las posibles combinaciones de sucesos de dos dimensiones, \textbf{calculamos su soporte}:
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+        & Soporte\\ \hline
+\{X,N\} & 3/8 = 0.375 = 37.5 \%		\\ \hline
+\{X,B\} & 5/8 = 0.625 = 62.5 \%     \\ \hline
+\{X,C\} & 5/8 = 0.625 = 62.5 \%     \\ \hline
+\{N,B\} & 2/8 = 0.25  =  25 \%      \\ \hline
+\{N,C\} & 2/8 = 0.25 = 25 \%     	\\ \hline
+\{B,C\} & 4/8 = 0.50 = 50 \%     	\\ \hline
+\end{tabular}
+\end{center}
+
+\hfil Como podemos observar, solo tres sucesos logran superar el umbral de soporte: \textbf{\{X,B\}, \{X,C\}, \{B,C\}} \par \leavevmode
+\\[1\baselineskip]
+Continuamos con \textbf{dimensión 3}:
+Aplicamos el método \begin{equation*} F_{3-1} \times F_{3-1} = F_{2} \times F_{2} \end{equation*}
+\begin{equation*} a_{i}=b_{i} \end{equation*}  
+Para \textit{i=1,2,…,k-2} primeros,es decir, en este caso tendremos k-2 = 3-2 = 1. Esto quiere decir que debe coincidir el primer elemento.
+\begin{equation*} a_{k-1} \neq b_{k-1} \end{equation*} 
+Es decir, en este caso tendremos k-1 = 3-1 = 2. Esto quiere decir que no deben coincidir los elementos 
+\begin{equation*} a_{2} \neq b_{2} ; a_{1} \neq b_{1} \end{equation*}
+Entonces, siguiendo estas condiciones el único conjunto posible de tres dimensiones queda de la siguiente forma:
+\\[1\baselineskip]
+
+\hfil \textbf{\{X,B,C\}} \par \leavevmode
+\\[1\baselineskip]
+Una vez obtenidos todas las posibles combinaciones de sucesos de tres dimensiones, \textbf{calculamos su soporte}:
+
+\hfil \textbf{Soporte \{X,B,C\} = 4/8 = 0.50 = 50 \%} \par
+
+\newpage
+Hemos llegado a la máxima dimensión. Por tanto, los sucesos candidatos de 2 y 3 dimensiones que superan el soporte establecido son:
+
+\hfil \textbf{\{X,B\}, \{X,C\}, \{B,C\}, \{X,B,C\}} \par
+
+A continuación, cambiamos cada suceso elemental por un valor numérico:
+\begin{itemize}
+	\item X: 1
+	\item A: 2
+	\item T: 3
+	\item N: 4
+	\item B: 5
+	\item C: 6
+\end{itemize}
+
+De esta manera, los sucesos candidatos nos quedan de la siguiente forma:
+
+\hfil \textbf{\{1,5\}, \{1,6\}, \{5,6\}, \{1,5,6\}} \par
+
+Una vez asignado un valor a cada suceso elemental, aplicaremos la \textbf{función de partición}: \begin{equation*} h(p)=p\mod3 \end{equation*}
+
+Donde \textbf{p} es el valor correspondiente a cada suceso elemental. Como la función de partición es \textbf{mod 3}, recordemos que tendremos un total de 3 nodos que se crearán de la siguiente forma:
+
+\begin{center}
+    \begin{itemize}
+    	\item \textit{h(1) = 1 mod 3 = 1}
+    	\item \textit{h(2) = 2 mod 3 = 2}
+		\item \textit{h(3) = 3 mod 3 = 0 ó 3}
+		\item \textit{h(4) = 4 mod 3 = 1}
+		\item \textit{h(5) = 5 mod 3 = 2}
+		\item \textit{h(6) = 6 mod 3 = 0 ó 3}
+    \end{itemize}
+\end{center}
+
+Como podemos comprobar, la función de partición nos ha dado valores comprendidos entre 1 y 3. Esto nos indica a qué nodo va cada uno de los sucesos elementales. Esos nodos quedarán de la siguiente forma:
+
+\begin{center}
+    \begin{itemize}
+    	\item \textit{Nodo 1 = \{1,4\}}
+    	\item \textit{Nodo 2 = \{2,5\}}
+		\item \textit{Nodo 3 = \{3,6\}}
+    \end{itemize}
+\end{center}
+
+Como podemos observar, los nodos se organizan de \textbf{izquierda a derecha}. Comenzamos con los sucesos de \textbf{dos dimensiones}:
+
+\hfil \textbf{\{1,5\}, \{1,6\}, \{5,6\}} \par
+
+En primer lugar, comprobamos el primer valor de cada suceso. En este caso, los dos primeros primeros sucesos se situarán en el primer nodo del árbol (ya que ambos empiezan por 1), 
+mientras que el tercer suceso se situará en el segundo nodo.  Por otro lado, \textit{\{1,5\}} se situará a la izquierda de \textit{\{1,6\}}, ya que el 5 pertenece a la clase 2 mientras
+que 6 pertenece a la clase 3:
+
+\Tree[. [. [.1,5  ]
+               [.1,6 ]]
+          [.5,6 
+                ]]
+\newpage
+Realizamos el mismo proceso para los sucesos de \textbf{tres dimensiones}:
+
+\hfil \textbf{\{1,5\}, \{1,6\}, \{5,6\}} \par
+
+\Tree[. [.1,6,5 
+              ]
+          ]
+
+En este caso sólo tenemos un suceso candidato. De esta forma ya tendríamos las particiones de los sucesos candidatos.
+
+A continuación, \textbf{realizamos una partición de los sucesos de la muestra, utilizando el mismo \textit{hash tree}}. Si pasamos los sucesos elementales a valores numéricos, las muestras quedarán de la siguiente
+forma:
+
+\begin{center}
+    \begin{itemize}
+    	\item \textit{\{X,C,N,B\} = \{1,6,4,5\}}
+    	\item \textit{\{X,T,B,C\} = \{1,3,5,6\}}
+		\item \textit{\{N,C,X\} = \{4,6,1\}}
+		\item \textit{\{N,T,X,B\} = \{4,3,1,5\}}
+		\item \textit{\{X,C,B\} = \{1,6,5\}}
+		\item \textit{\{N\} = \{4\}}
+		\item \textit{\{X,B,C\} = \{1,5,6\}}
+		\item \textit{\{T,A\} = \{3,2\}}
+    \end{itemize}
+\end{center}
+
+\textbf{Construimos las particiones para sucesos de 2 dimensiones}
+
+\begin{enumerate}
+\qtreecentertrue
+\item[] 
+	\Tree[.1,6,4,5 [. [.1,4  ]
+				[.1,5 [.4,5 ]]
+				[.1,6 ]
+			   ]
+			   [. [.6,4 ]
+			   	  [.6,5 ]
+			   ]
+]
+    \Tree[.1,3,5,6 [. [.1,3  ]
+				[.1,5 ]
+				[.1,6 ]
+			   ]
+			   [. [.5,6 ]]
+			   [. [.3,5 ]
+			   	  [.3,6 ]
+			   ]
+]
+ 
+	\Tree[.4,6,1 [. [.4,1  ]
+				[.4,6 ]
+			   ]
+			   [. [.6,1 ]
+			   ]
+]
+    \Tree[.4,3,1,5 [. [.4,1  ]
+				[.4,5 [.1,5 ]]
+				[.4,3 ]
+			   ]
+			   [. [.3,1 ]
+			   	  [.3,5 ]
+			   ]
+]
+	\Tree[.1,6,5 [. [.1,5  ]
+					[.1,6 ]
+				]
+				[. [.6,5 ]
+				]
+]
+
+    \Tree[.1,5,6 [. [.1,5  ]
+					[.1,6 ]
+				]
+				[. [.5,6 ]
+				]
+]
+	\Tree[.3,2 [.3,2 ]
+	]
+\end{enumerate}
+\newpage
+Si nos fijamos no hemos puesto el suceso \{4\} ya que es inferior a la dimensión establecida.
+\textbf{Ahora, construimos las particiones para subconjuntos de 3 dimensiones}:
+
+\begin{enumerate}
+\qtreecentertrue
+\item[] 
+	\Tree[.1,6,4,5 [. [.1,4,5  ]
+					[. [.1,6,4 ] 
+					[.1,6,5 ]]
+				]
+				[.6,4,5 
+				]
+]
+	\Tree[.1,3,5,6 [. [.1,5,6 ] 
+					[. [.1,3,5 ] [.1,3,6 ]]
+				]
+				[.3,5,6 
+				]
+]
+	\Tree[.4,6,1 [.4,6,1 
+				]
+]
+	\Tree[.4,3,1,5 [. [.4,1,5 ] 
+					[. [.4,3,1 ] [.4,3,5 ]]
+				]
+				[.3,1,5 
+				]
+]
+	\Tree[.1,6,5 [.1,6,5 
+				]
+]
+	\Tree[.1,5,6 [.1,5,6 
+				]
+]
+\end{enumerate}
+
+Si nos fijamos no hemos puesto el suceso \{1 2\} ni el \{4\} ya que es inferior a la dimensión establecida. Y con esto ya tendríamos las particiones de las muestras.
+A continuación, \textbf{contamos el número de aparaciones de cada suceso candidato}:
+\textbf{Para subconjuntos de 2 dimensiones}
+\begin{itemize}
+    \item \textit{\{1,5\} = \{X,B\} = 5}, luego su soporte es de 5/8 = 0.625 = 62.5\%
+    \item \textit{\{1,6\} = \{X,C\} = 4}, luego su soporte es de 4/8 = 0.50 = 50\%
+	\item \textit{\{5,6\} = \{C,B\} = 4}, luego su soporte es de 4/8 = 0.50 = 50\%
+\end{itemize}
+
+\textbf{Para subconjuntos de 3 dimensiones}
+\begin{itemize}
+    \item \textit{\{1,6,5\} = \{X,C,B\} = 4}, luego su soporte es de 4/8 = 0.50 = 50\%
+\end{itemize}
+
+En todos los sucesos candidatos, el soporte es \textbf{mayor o igual} al 40\%, luego todos son aptos para continuar con su estudio.
+
+\paragraph{Paso B.	Identificación de las asociaciones de confianza. Cálculo de la confianza}
+El siguiente paso consistirá en \textbf{analizar los sucesos candidatos} que hayan superado el umbral de soporte. Para ello, \textbf{identificaremos las asociaciones: \textit{\[2^{k}-2\]}}
+\begin{itemize}
+    \item Para \textit{k} = 2 dimensiones, tendremos \textbf{2 asociaciones por cada suceso candidato}.
+    \item Para \textit{k} = 3 dimensiones, tendremos \textbf{6 asociaciones por cada suceso candidato}.
+\end{itemize}
+
+\hfil \textbf{Para sucesos candidatos de 2 dimensiones} \par
+\hfil \begin{equation*} \{X\} \rightarrow \{B\} \end{equation*} \par
+\hfil \begin{equation*} \{X\} \rightarrow \{C\} \end{equation*} \par
+\hfil \begin{equation*} \{C\} \rightarrow \{B\} \end{equation*} \par
+\hfil \begin{equation*} \{B\} \rightarrow \{X\} \end{equation*} \par
+\hfil \begin{equation*} \{C\} \rightarrow \{X\} \end{equation*} \par
+\hfil \begin{equation*} \{B\} \rightarrow \{C\} \end{equation*} \par
+\newpage
+\hfil \textbf{Para sucesos candidatos de 3 dimensiones} \par
+\hfil \begin{equation*} \{X,C\} \rightarrow \{B\} \end{equation*} \par
+\hfil \begin{equation*} \{X,B\} \rightarrow \{C\} \end{equation*} \par
+\hfil \begin{equation*} \{C,B\} \rightarrow \{X\} \end{equation*} \par
+\hfil \begin{equation*} \{B\} \rightarrow \{X,C\} \end{equation*} \par
+\hfil \begin{equation*} \{C\} \rightarrow \{B,X\} \end{equation*} \par
+\hfil \begin{equation*} \{X\} \rightarrow \{C,B\} \end{equation*} \par
+
+A continuación, aplicamos el siguiente teorema:
+
+\textbf{Comenzamos con \textit{B = \{X,C,B\}}}:
+
+\begin{itemize}
+    \item Para \textit{A = \{X,C\}}. \begin{equation*} \{X,C\} \rightarrow \{X,B,C\} - \{X,C\} = \{X,C\} \rightarrow \{B\} \end{equation*}
+	Calculamos su confianza: \begin{equation*} c(\{X,C\} \rightarrow \{B\}) = \dfrac{4}{5} = 0.8 < 0.9 \end{equation*}
+	Al no superar el umbral, cualquier asociación \begin{equation*} A' \rightarrow B - A' \end{equation*} no lo alcanzarán.
+
+	\item Para \textit{A = \{X,B\}}. \begin{equation*} \{X,B\} \rightarrow \{X,B,C\} - \{X,B\} = \{X,B\} \rightarrow \{C\} \end{equation*}
+	Calculamos su confianza: \begin{equation*} c(\{X,B\} \rightarrow \{C\}) = \dfrac{4}{5} = 0.8 < 0.9 \end{equation*}
+	Al no superar el umbral, cualquier asociación \begin{equation*} A' \rightarrow B - A' \end{equation*} no lo alcanzarán.
+
+	\item Para \textit{A = \{C,B\}}. \begin{equation*} \{C,B\} \rightarrow \{X,B,C\} - \{C,B\} = \{C,B\} \rightarrow \{X\} \end{equation*}
+	Calculamos su confianza: \begin{equation*} c(\{C,B\} \rightarrow \{X\}) = \dfrac{4}{4} = 1 > 0.9 \end{equation*}
+	En este caso, no podemos aplicar el teorema:
+	Si A' es cada uno de los subconjuntos de A, entonces A' = \textit{\{C\}}.
+	\begin{equation*} \{C\} \rightarrow \{X,C,B\} - \{C\} = \{C\} \rightarrow \{X,B\} \end{equation*}
+	Calculamos su confianza: \begin{equation*} c(\{C\} \rightarrow \{X,B\}) = \dfrac{4}{5} = 0.8 < 0.9 \end{equation*}
+	A' = \textit{\{B\}}.
+	\begin{equation*} \{B\} \rightarrow \{X,C,B\} - \{B\} = \{B\} \rightarrow \{X,C\} \end{equation*}
+	Calculamos su confianza: \begin{equation*} c(\{B\} \rightarrow \{X,C\}) = \dfrac{4}{5} = 0.8 < 0.9 \end{equation*}
+\end{itemize}
+
+\textbf{Cogemos el siguiente suceso candidato: \textit{B = \{C,B\}}}:
+
+\begin{itemize}
+    \item Para \textit{A = \{C\}}. \begin{equation*} \{C\} \rightarrow \{C,B\} - \{C\} = \{C\} \rightarrow \{B\} \end{equation*}
+	Calculamos su confianza: \begin{equation*} c(\{C\} \rightarrow \{B\}) = \dfrac{4}{5} = 0.8 < 0.9 \end{equation*}
+
+	\item Para \textit{A = \{B\}}. \begin{equation*} \{B\} \rightarrow \{C,B\} - \{B\} = \{B\} \rightarrow \{C\} \end{equation*}
+	Calculamos su confianza: \begin{equation*} c(\{B\} \rightarrow \{C\}) = \dfrac{4}{5} = 0.8 < 0.9 \end{equation*}
+\end{itemize}
+
+\textbf{Volvemos a coger el siguiente suceso candidato: \textit{B = \{X,C\}}}:
+
+\begin{itemize}
+	\item Para \textit{A = \{X\}}. \begin{equation*} \{X\} \rightarrow \{X,C\} - \{X\} = \{X\} \rightarrow \{C\} \end{equation*}
+	Calculamos su confianza: \begin{equation*} c(\{X\} \rightarrow \{C\}) = \dfrac{5}{6} = 0.83 < 0.9 \end{equation*}
+
+	\item Para \textit{A = \{C\}}. \begin{equation*} \{C\} \rightarrow \{X,C\} - \{C\} = \{C\} \rightarrow \{X\} \end{equation*}
+	Calculamos su confianza: \begin{equation*} c(\{C\} \rightarrow \{X\}) = \dfrac{5}{5} = 1 > 0.9 \end{equation*}
+\end{itemize}
+
+\textbf{Y cojemos el último suceso candidato: \textit{B = \{X,B\}}}:
+
+\begin{itemize}
+	\item Para \textit{A = \{X\}}. \begin{equation*} \{X\} \rightarrow \{X,B\} - \{X\} = \{X\} \rightarrow \{B\} \end{equation*}
+	Calculamos su confianza: \begin{equation*} c(\{X\} \rightarrow \{B\}) = \dfrac{5}{6} = 0.83 < 0.9 \end{equation*}.
+
+	\item Para \textit{A = \{B\}}. \begin{equation*} \{B\} \rightarrow \{X,B\} - \{B\} = \{B\} \rightarrow \{X\} \end{equation*}
+	Calculamos su confianza: \begin{equation*} c(\{B\} \rightarrow \{X\}) = \dfrac{5}{5} = 1 > 0.9 \end{equation*}
+\end{itemize}
+
+Para concluir:
+\textbf{Las asociaciones con un soporte mayor o igual que el 40\% y una confianza mayor o igual que el 90\% son:}
+\begin{equation*} \{C,B\} \rightarrow \{X\} \end{equation*}
+\begin{equation*} \{C\} \rightarrow \{X\} \end{equation*}
+\begin{equation*} \{B\} \rightarrow \{X\} \end{equation*}
+
+\subsection{Apartado 2.2}
+Este apartado consistirá en el análisis de asociación con \texttt{R} utilizando \textbf{datos de importaciones y exportaciones realizadas en la India entre los años 2010 y 
+2018\footnote{\url{https://www.kaggle.com/lakshyaag/india-trade-data}} en formato \textit{.xlsx}}.
+Para la realización de este apartado, utilizaremos las siguiente librerías:
+\begin{itemize}
+    \item \textit{package(openxlsx)} para la lectura de ficheros \textit{.xlsx} de gran tamaño\footnote{\url{https://cran.r-project.org/web/packages/openxlsx/index.html}}. La diferencia con respecto al paquete
+    \textit{XLConnect} es que elimina la dependencia de \textit{Java} para la lectura de ficheros.
+    \item \textit{package(arules)} para la ejecución del algoritmo \textit{apriori}.
+    \item \textit{package(dplyr)}, el cual dispone de una gramática propia para la manipulación de datos, similares a una consulta \texttt{SQL}.
+    \item \textit{package(plyr)} para la partición de grandes volúmenes de datos, permitiendo trabajar con pequeños subconjuntos \footnote{\url{https://cran.r-project.org/web/packages/plyr/index.html}}.
+    \item \textit{package(arulesViz)}. Se trata de una extensión del paquete \textit{arules} que ofrece varias técnicas de visualización para conjuntos de asociaciones \footnote{\url{https://cran.r-project.org/web/packages/arulesViz/vignettes/arulesViz.pdf}}.
+\end{itemize}
+
+Inicialmenete, comenzamos instalando y cargando todos los datos:
+\begin{Schunk}
+\begin{Sinput}
+> #Instalamos y cargamos los paquetes
+> if(!require(openxlsx)){
++     install.packages("openxlsx")
++     require(openxlsx)
++ }
+> if(!require(arules)){
++     install.packages("arules")
++     require(arules)
++ }
+> if(!require(dplyr)){
++     install.packages("dplyr")
++     require(dplyr)
++ }
+> if(!require(plyr))
++ {
++     install.packages("plyr")
++     require(plyr)
++ }
+> if(!require(arulesViz)){
++     install.packages("arulesViz")
++     require(arulesViz)
++ }
+\end{Sinput}
+\end{Schunk}
+\newpage
+Comenzamos con la lectura del fichero \textit{.xlsx}. Para ello, \textit{openxlsx} dispone de una función denominada \textit{read.xlsx}:
+\begin{itemize}
+    \item nombre del archivo.
+    \item \textit{sheet}: número de hoja a leer.
+    \item \textit{startRow}: número de fila de comienzo del fichero.
+    \item \textit{endCol}: número de columna final del fichero.
+\end{itemize}
+{\footnotesize
+\begin{Schunk}
+\begin{Sinput}
+> #Datos de exportaciones
+> listado.exportaciones <- read.xlsx("2018-2010_export.xlsx", sheet = 1, startRow = 1, colNames = TRUE)
+> nrow(listado.exportaciones)
+\end{Sinput}
+\begin{Soutput}
+[1] 137023
+\end{Soutput}
+\begin{Sinput}
+> #Datos de importaciones
+> listado.importaciones <- read.xlsx("2018-2010_import.xlsx", sheet = 1, startRow = 1, colNames = TRUE)
+> nrow(listado.importaciones)
+\end{Sinput}
+\begin{Soutput}
+[1] 93095
+\end{Soutput}
+\end{Schunk}
+}
+
+Debido al elevado número de filas que presenta el \textit{dataset}, vamos a realizar una pequeña consulta sobre nuestro \textit{dataframe} mediante la librería \textit{dplyr}.
+Si recordamos de la práctica anterior, esta librería permite realizar consultas a un dataframe, similar a una consulta \texttt{SQL} \footnote{\url{https://rsanchezs.gitbooks.io/rprogramming/content/chapter9/dplyr.html}}, proporcionando los siguientes comandos para realizar consultas sobre un data frame:
+\begin{itemize}
+	\item \textbf{select}: permite seleccionar un conjunto de columnas.
+	\item \textbf{filter}: devuelve un conjunto de filas que cumplan una condición dada.
+	\item \textbf{arrange}: permite reordenar las filas de un data frame.
+	\item \textbf{rename}: permite renombrar variables en un data frame.
+	\item \textbf{mutate}: permite añadir nuevas columnas o modificar columnas existentes.
+	\item \textbf{head}: para obtener las primeras n filas.
+	\item \textbf{summarise}: para calcular resúmenes estadísticos.
+    \item \textbf{pipe}: se emplea para concatenar varias acciones.
+\end{itemize}
+
+En este caso, vamos a consultar \textbf{las 10 primeras filas}:
+{\footnotesize
+\begin{Schunk}
+\begin{Sinput}
+> #pipe = %>%, muy importante para concatenar varias acciones sobre un dataframe
+> #Equivalente en SQL a:
+> #SELECT Commodity FROM listado.exportaciones LIMIT 10
+> listado.exportaciones %>% select(Commodity) %>% head(10)
+\end{Sinput}
+\begin{Soutput}
+                                                                                                      Commodity
+1                                                                                   MEAT AND EDIBLE MEAT OFFAL.
+2                                               FISH AND CRUSTACEANS, MOLLUSCS AND OTHER AQUATIC INVERTABRATES.
+3    DAIRY PRODUCE; BIRDS' EGGS; NATURAL HONEY; EDIBLE PROD. OF ANIMAL ORIGIN, NOT ELSEWHERE SPEC. OR INCLUDED.
+4                   LIVE TREES AND OTHER PLANTS; BULBS; ROOTS AND THE LIKE; CUT FLOWERS AND ORNAMENTAL FOLIAGE.
+5                                                               EDIBLE VEGETABLES AND CERTAIN ROOTS AND TUBERS.
+6                                                        EDIBLE FRUIT AND NUTS; PEEL OR CITRUS FRUIT OR MELONS.
+7                                                                                 COFFEE, TEA, MATE AND SPICES.
+8                                                                                                      CEREALS.
+9                                       PRODUCTS OF THE MILLING INDUSTRY; MALT; STARCHES; INULIN; WHEAT GLUTEN.
+10 OIL SEEDS AND OLEA. FRUITS; MISC. GRAINS, SEEDS AND FRUIT; INDUSTRIAL OR MEDICINAL PLANTS; STRAW AND FODDER.
+\end{Soutput}
+\begin{Sinput}
+> #SELECT Commodity FROM listado.importaciones LIMIT 10
+> listado.importaciones %>% select(Commodity) %>% head(10)
+\end{Sinput}
+\begin{Soutput}
+                                                                                                      Commodity
+1                                               PRODUCTS OF ANIMAL ORIGIN, NOT ELSEWHERE SPECIFIED OR INCLUDED.
+2                                                               EDIBLE VEGETABLES AND CERTAIN ROOTS AND TUBERS.
+3                                                        EDIBLE FRUIT AND NUTS; PEEL OR CITRUS FRUIT OR MELONS.
+4                                                                                 COFFEE, TEA, MATE AND SPICES.
+5                                       PRODUCTS OF THE MILLING INDUSTRY; MALT; STARCHES; INULIN; WHEAT GLUTEN.
+6  OIL SEEDS AND OLEA. FRUITS; MISC. GRAINS, SEEDS AND FRUIT; INDUSTRIAL OR MEDICINAL PLANTS; STRAW AND FODDER.
+7                                                      LAC; GUMS, RESINS AND OTHER VEGETABLE SAPS AND EXTRACTS.
+8                                             PREPARATIONS OF VEGETABLES, FRUIT, NUTS OR OTHER PARTS OF PLANTS.
+9                                       SALT; SULPHUR; EARTHS AND STONE; PLASTERING MATERIALS, LIME AND CEMENT.
+10        MINERAL FUELS, MINERAL OILS AND PRODUCTS OF THEIR DISTILLATION; BITUMINOUS SUBSTANCES; MINERAL WAXES.
+\end{Soutput}
+\end{Schunk}
+}
+
+Analicemos las columnas de ambos ficheros:
+\begin{itemize}
+    \item \textbf{HSCode}: id único para cada producto de importacion/exportacion.
+    \item \textbf{Commodity}: nombre del producto.
+    \item \textbf{value}: precio de cada producto.
+    \item \textbf{country}: país de importación/exportación.
+    \item \textbf{year}: año de importación/exportación.
+\end{itemize}
+
+Una vez importados los datos, comprobamos si existen posibles filas que contengan valores a \textit{NA}:
+
+\begin{Schunk}
+\begin{Sinput}
+> #Para los datos de exportacion
+> sum(is.na(listado.exportaciones))
+\end{Sinput}
+\begin{Soutput}
+[1] 14038
+\end{Soutput}
+\begin{Sinput}
+> #Para los datos de importacion
+> sum(is.na(listado.importaciones))
+\end{Sinput}
+\begin{Soutput}
+[1] 14027
+\end{Soutput}
+\end{Schunk}
+Dado que existen filas con valores a \textit{NA}, debemos conservar únicamente aquellas \textbf{filas completas}, es decir, sin valores a \textit{NA}. Para ello, utilizaremos la función \textit{complete.cases}, que
+devolverá un \textit{booleano} por cada fila, indicando si se trata o no de una fila completa \footnote{\url{https://www.rdocumentation.org/packages/stats/versions/3.6.1/topics/complete.cases}}:
+
+{\small
+\begin{Schunk}
+\begin{Sinput}
+> #Para datos de exportacion/importacion, nos quedamos con aquellas filas que no contengan 
+> #columnas a NA. para ello, utilizaremos la función complete.cases() que 
+> #filtran aquellas filas "completas"
+> listado.exportacionesv2 <- listado.exportaciones[complete.cases(listado.exportaciones), ]
+> sum(is.na(listado.exportacionesv2)) #0, luego ya no existen valores a NA
+\end{Sinput}
+\begin{Soutput}
+[1] 0
+\end{Soutput}
+\begin{Sinput}
+> listado.importacionesv2 <- listado.importaciones[complete.cases(listado.importaciones), ]
+> sum(is.na(listado.importacionesv2)) #0, luego ya no existen valores a NA
+\end{Sinput}
+\begin{Soutput}
+[1] 0
+\end{Soutput}
+\end{Schunk}
+}
+
+Una vez eliminadas las filas con valores a \textit{NA}, debemos \textbf{transformar nuestro fichero Excel a transacciones}. Para ello, en lugar de crear una matriz binaria como en el apartado 1, utilizaremos la
+función \textit{ddply} \footnote{\url{https://www.rdocumentation.org/packages/plyr/versions/1.8.4/topics/ddply}}, disponible en el paquete \textit{dplyr}. Esta función permite \textbf{aplicar una función a un
+subconjunto del \textit{data frame}}. En nuestro caso, queremos juntar los datos mediante la función \textit{paste} agrupados por la columna \textit{country}:
+
+\begin{Schunk}
+\begin{Sinput}
+> #Mediante el paquete plyr, agrupamos los productos por pais
+> #Utilizando la funcion paste, juntamos la columna Commodity de
+> #aquellas exportaciones/importaciones del mismo pais
+> transactionData.exportaciones <- ddply(listado.exportacionesv2,c("country"), 
++ function(df1)paste(df1$Commodity, collapse = ","))
+> transactionData.importaciones <- ddply(listado.importacionesv2,c("country"), 
++ function(df1)paste(df1$Commodity, collapse = ","))
+\end{Sinput}
+\end{Schunk}
+
+Una vez agrupados los datos en transacciones, eliminaremos la columna \textit{country}, pues ya no va a ser necesaria, además de renombrar la columna de transacciones:
+
+\begin{Schunk}
+\begin{Sinput}
+> #Eliminamos la columna country
+> transactionData.exportaciones$country <- NULL
+> transactionData.importaciones$country <- NULL
+> #Renombramos la columna de transacciones
+> #Por defecto, se llama V1
+> colnames(transactionData.exportaciones) <- c("exportaciones")
+> colnames(transactionData.importaciones) <- c("importaciones")
+\end{Sinput}
+\end{Schunk}
+
+A continuación, exportamos los \textit{data frames} resultantes a formato \textit{csv}. Para ello, utilizaremos la función \textit{write.csv}:
+
+\begin{Schunk}
+\begin{Sinput}
+> #Guardamos la transacciones resultantes a csv
+> #Quote: eliminamos posibles comillas dobles que aparezcan
+> #Row.names: si queremos enumerar o no cada fila
+> write.csv(transactionData.exportaciones,"exportaciones.csv", quote = FALSE,
++ row.names = FALSE)
+> write.csv(transactionData.importaciones,"importaciones.csv", quote = FALSE,
++ row.names = FALSE)
+\end{Sinput}
+\end{Schunk}
+Una vez exportados ambos \textit{data frames}, mediante la librería \textit{arules}, realizamos la lectura del fichero de transacciones. Para ello, utilizaremos la función \textit{read.transactions}. Por lo general,
+existen dos formas de leer un fichero de transacciones:
+
+\begin{itemize}
+    \item \textit{basket}: cuando cada transacción incluye una \textit{cesta} de sucesos, donde cada elemento está separado con el caracter que indiquemos en \textit{read.transactions}.
+    \item \textit{single}: cuando cada transacción contiene un único elemento, o parejas \textit{id-producto}.
+\end{itemize}
+
+En nuestro caso, se trata de un fichero de tipo \textit{basket}:
+\begin{Schunk}
+\begin{Sinput}
+> #Para datos de exportaciones
+> tr.exportaciones <- read.transactions('exportaciones.csv', format = 'basket', sep=',')
+> #Para datos de importaciones
+> tr.importaciones <- read.transactions('importaciones.csv', format = 'basket', sep=',')
+\end{Sinput}
+\end{Schunk}
+
+Tras importar las transacciones, ejecutamos los algoritmos de asociación:
+\textbf{Comenzamos con el algoritmo \textit{apriori}}:
+
+\begin{Schunk}
+\begin{Sinput}
+> #Para los datos de exportacion
+> #Ejectuamos el algoritmo apriori con un 77% de soporte y un 90% de confianza
+> association.rules.exportaciones <- apriori(tr.exportaciones, parameter = list(supp=0.77, conf=0.9))
+\end{Sinput}
+\begin{Soutput}
+Apriori
+
+Parameter specification:
+ confidence minval smax arem  aval originalSupport maxtime support minlen maxlen target   ext
+        0.9    0.1    1 none FALSE            TRUE       5    0.77      1     10  rules FALSE
+
+Algorithmic control:
+ filter tree heap memopt load sort verbose
+    0.1 TRUE TRUE  FALSE TRUE    2    TRUE
+
+Absolute minimum support count: 191 
+
+set item appearances ...[0 item(s)] done [0.00s].
+set transactions ...[985 item(s), 249 transaction(s)] done [0.01s].
+sorting and recoding items ... [7 item(s)] done [0.00s].
+creating transaction tree ... done [0.00s].
+checking subsets of size 1 2 3 done [0.00s].
+writing ... [18 rule(s)] done [0.00s].
+creating S4 object  ... done [0.00s].
+\end{Soutput}
+\begin{Sinput}
+> #Para los datos de importacion
+> #Ejectuamos el algoritmo apriori con un 86% de soporte y un 90% de confianza
+> association.rules.importaciones <- apriori(tr.importaciones, parameter = list(supp=0.86, conf=0.9))
+\end{Sinput}
+\begin{Soutput}
+Apriori
+
+Parameter specification:
+ confidence minval smax arem  aval originalSupport maxtime support minlen maxlen target   ext
+        0.9    0.1    1 none FALSE            TRUE       5    0.86      1     10  rules FALSE
+
+Algorithmic control:
+ filter tree heap memopt load sort verbose
+    0.1 TRUE TRUE  FALSE TRUE    2    TRUE
+
+Absolute minimum support count: 208 
+
+set item appearances ...[0 item(s)] done [0.00s].
+set transactions ...[528 item(s), 242 transaction(s)] done [0.00s].
+sorting and recoding items ... [6 item(s)] done [0.00s].
+creating transaction tree ... done [0.00s].
+checking subsets of size 1 2 3 done [0.00s].
+writing ... [18 rule(s)] done [0.00s].
+creating S4 object  ... done [0.00s].
+\end{Soutput}
+\end{Schunk}
+{\scriptsize
+\begin{Schunk}
+\begin{Sinput}
+> #Para los datos de exportacion
+> inspect(association.rules.exportaciones)
+\end{Sinput}
+\begin{Soutput}
+     lhs                                                                                                                                            
+[1]  {NUCLEAR REACTORS}                                                                                                                           =>
+[2]  {BOILERS}                                                                                                                                    =>
+[3]  {NUCLEAR REACTORS}                                                                                                                           =>
+[4]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                                                                        =>
+[5]  {BOILERS}                                                                                                                                    =>
+[6]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                                                                        =>
+[7]  {AND PARTS.}                                                                                                                                 =>
+[8]  {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS}                                                      =>
+[9]  {AND PARTS.}                                                                                                                                 =>
+[10] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                                                                       =>
+[11] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS}                                                      =>
+[12] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                                                                       =>
+[13] {BOILERS,NUCLEAR REACTORS}                                                                                                                   =>
+[14] {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.,NUCLEAR REACTORS}                                                                       =>
+[15] {BOILERS,MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                                                                =>
+[16] {AND PARTS.,ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS}                                           =>
+[17] {AND PARTS.,TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                                                            =>
+[18] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS,TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS} =>
+     rhs                                                                                     support   confidence lift     count
+[1]  {BOILERS}                                                                               0.7710843 1          1.296875 192  
+[2]  {NUCLEAR REACTORS}                                                                      0.7710843 1          1.296875 192  
+[3]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                   0.7710843 1          1.296875 192  
+[4]  {NUCLEAR REACTORS}                                                                      0.7710843 1          1.296875 192  
+[5]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                   0.7710843 1          1.296875 192  
+[6]  {BOILERS}                                                                               0.7710843 1          1.296875 192  
+[7]  {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS} 0.7991968 1          1.251256 199  
+[8]  {AND PARTS.}                                                                            0.7991968 1          1.251256 199  
+[9]  {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                  0.7991968 1          1.251256 199  
+[10] {AND PARTS.}                                                                            0.7991968 1          1.251256 199  
+[11] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                  0.7991968 1          1.251256 199  
+[12] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS} 0.7991968 1          1.251256 199  
+[13] {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                   0.7710843 1          1.296875 192  
+[14] {BOILERS}                                                                               0.7710843 1          1.296875 192  
+[15] {NUCLEAR REACTORS}                                                                      0.7710843 1          1.296875 192  
+[16] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                  0.7991968 1          1.251256 199  
+[17] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS} 0.7991968 1          1.251256 199  
+[18] {AND PARTS.}                                                                            0.7991968 1          1.251256 199  
+\end{Soutput}
+\begin{Sinput}
+> #Para los datos de importacion
+> inspect(association.rules.importaciones)
+\end{Sinput}
+\begin{Soutput}
+     lhs                                                                                                                                            
+[1]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                                                                        =>
+[2]  {NUCLEAR REACTORS}                                                                                                                           =>
+[3]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                                                                        =>
+[4]  {BOILERS}                                                                                                                                    =>
+[5]  {NUCLEAR REACTORS}                                                                                                                           =>
+[6]  {BOILERS}                                                                                                                                    =>
+[7]  {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS}                                                      =>
+[8]  {AND PARTS.}                                                                                                                                 =>
+[9]  {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS}                                                      =>
+[10] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                                                                       =>
+[11] {AND PARTS.}                                                                                                                                 =>
+[12] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                                                                       =>
+[13] {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.,NUCLEAR REACTORS}                                                                       =>
+[14] {BOILERS,MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                                                                =>
+[15] {BOILERS,NUCLEAR REACTORS}                                                                                                                   =>
+[16] {AND PARTS.,ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS}                                           =>
+[17] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS,TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS} =>
+[18] {AND PARTS.,TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                                                            =>
+     rhs                                                                                     support   confidence lift     count
+[1]  {NUCLEAR REACTORS}                                                                      0.8636364 1          1.157895 209  
+[2]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                   0.8636364 1          1.157895 209  
+[3]  {BOILERS}                                                                               0.8636364 1          1.157895 209  
+[4]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                   0.8636364 1          1.157895 209  
+[5]  {BOILERS}                                                                               0.8636364 1          1.157895 209  
+[6]  {NUCLEAR REACTORS}                                                                      0.8636364 1          1.157895 209  
+[7]  {AND PARTS.}                                                                            0.8677686 1          1.152381 210  
+[8]  {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS} 0.8677686 1          1.152381 210  
+[9]  {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                  0.8677686 1          1.152381 210  
+[10] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS} 0.8677686 1          1.152381 210  
+[11] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                  0.8677686 1          1.152381 210  
+[12] {AND PARTS.}                                                                            0.8677686 1          1.152381 210  
+[13] {BOILERS}                                                                               0.8636364 1          1.157895 209  
+[14] {NUCLEAR REACTORS}                                                                      0.8636364 1          1.157895 209  
+[15] {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                   0.8636364 1          1.157895 209  
+[16] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                  0.8677686 1          1.152381 210  
+[17] {AND PARTS.}                                                                            0.8677686 1          1.152381 210  
+[18] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS} 0.8677686 1          1.152381 210  
+\end{Soutput}
+\end{Schunk}
+}
+
+A continuación, \textbf{emplearemos el algoritmo \textit{ECLAT} para el cáclulo de asociación}, disponible en el paquete \textit{arules}.
+El algoritmo \textit{ECLAT} (\textit{Equivalence Class Clustering and bottom-up Lattice Traversal}) junto con \textit{apriori} se tratan de los algoritmos de asociación más populares. A diferencia de \textit{a priori},
+\textit{ECLAT} trabaja \underline{verticalmente} con los conjuntos de sucesos, de forma similar a una búsqueda en profundidad. Supongamos que tenemos la siguiente matriz binaria, en la que debemos aplicar asociación
+\textbf{con un soporte mínimo del 20\%}:
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+               & Bread & Butter & Milk & Coke & Jam \\ \hline
+T1             & 1   & 1    & 0    & 0     & 1        \\ \hline
+T2             & 0   & 1    & 0    & 1     & 0        \\ \hline
+T3             & 0   & 1    & 1    & 0     & 0        \\ \hline
+T4             & 1   & 1    & 0    & 1     & 0        \\ \hline
+T5             & 1   & 0    & 1    & 0     & 0        \\ \hline
+T6             & 0   & 1    & 1    & 0     & 0        \\ \hline
+T7             & 1   & 0    & 1    & 0     & 0        \\ \hline
+T8             & 1   & 1    & 1    & 0     & 1        \\ \hline
+T9             & 1   & 1    & 1    & 0     & 0        \\ \hline
+\end{tabular}
+\end{center}
+
+En la primera iteración \textbf{agrupamos las transacciones por cada uno de los sucesos elementales}:
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+Suceso elemental   & Conjunto de sucesos             \\ \hline
+Bread              & \{T1, T4, T5, T7, T8, T9\}      \\ \hline
+Butter             & \{T1, T2, T3, T4, T6, T8, T9\}  \\ \hline
+Milk               & \{T3, T5, T6, T7, T8, T9\}      \\ \hline
+Coke               & \{T2, T4\}                      \\ \hline
+Jam                & \{T1, T8\}                      \\ \hline
+\end{tabular}
+\end{center}
+
+En la segunda iteración, con los sucesos elementales \textbf{creamos parejas de sucesos, agrupando de nuevo las transacciones con los nuevos sucesos}, y así de forma recursiva hasta que no se puedan formar
+conjuntos de sucesos\footnote{Para el conjunto de sucesos \{Coke, Jam\}, por ejemplo, no aparecen conjuntamente en ninguna de las transacciones anteriores, por lo que no lo incluimos.}:
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+Suceso elemental   & Conjunto de sucesos             \\ \hline
+\{Bread, Butter\}  & \{T1, T4, T8, T9\}              \\ \hline
+\{Bread, Milk\}    & \{T5, T7, T8, T9\}              \\ \hline
+\{Bread, Coke\}    & \{T4\}                          \\ \hline
+\{Bread, Jam\}     & \{T1,T8\}                       \\ \hline
+\{Butter, Milk\}   & \{T3, T6, T8, T9\}              \\ \hline
+\{Butter, Coke\}   & \{T2, T4\}                      \\ \hline
+\{Butter, Jam\}    & \{T1, T8\}                      \\ \hline
+\{Milk, Jam\}      & \{T8\}                          \\ \hline
+\end{tabular}
+\end{center}
+
+\textbf{Para conjuntos de sucesos de tres dimensiones}:
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+Suceso elemental   & Conjunto de sucesos             \\ \hline
+\{Bread, Butter, Milk\}  & \{T8, T9\}                \\ \hline
+\{Bread, Butter, Jam\}    & \{T1, T8\}               \\ \hline
+\end{tabular}
+\end{center}
+
+\textbf{Para conjuntos de sucesos de cuatro dimensiones}:
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+Suceso elemental   & Conjunto de sucesos             \\ \hline
+\{Bread, Butter, Milk, Jam\}  & \{T8\}                \\ \hline
+\end{tabular}
+\end{center}
+
+Una vez tengamos nuestro conjunto de \textbf{sucesos candidatos}, filtramos aquellos conjuntos con un soporte \textbf{mayor o igual al 20 \%}:
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|}
+\hline
+Soporte mayor o igual a 20              \\ \hline
+\{Bread, Butter\}                       \\ \hline
+\{Bread, Milk\}                         \\ \hline
+\{Bread, Jam\}                          \\ \hline
+\{Butter, Milk\}                        \\ \hline
+\{Butter, Coke\}                        \\ \hline
+\{Butter, Jam\}                         \\ \hline
+\{Bread, Butter, Milk\}                 \\ \hline
+\{Bread, Butter, Jam\}                  \\ \hline
+\{Bread, Butter, Milk, Jam\}            \\ \hline
+\end{tabular}
+\end{center}
+
+A partir de los sucesos anteriores, \textbf{podemos establecer las reglas de asociación, creando todas las posibles combinaciones con cada suceso, sin repetir asociaciones}:
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|c|c|c|}
+\hline
+Suceso 1           & Suceso 2                        \\ \hline
+\{Bread\}          & \{Butter\}                      \\ \hline
+\{Bread\}          & \{Milk\}                        \\ \hline
+\{Bread\}          & \{Jam\}                         \\ \hline
+\{Butter\}         & \{Milk\}                        \\ \hline
+\{Butter\}         & \{Coke\}                        \\ \hline
+\{Butter\}         & \{Jam\}                         \\ \hline
+\{Bread, Butter\}  & \{Milk\}                        \\ \hline
+\{Bread, Butter\}  & \{Jam\}                         \\ \hline
+\end{tabular}
+\end{center}
+
+\textbf{Una vez explicado el funcionamiento del algoritmo, mediante la función \textit{eclat} del paquete \textit{arules} aplicaremos el algoritmo con los datos de exportación e importación anteriores}:
+
+{\scriptsize
+\begin{Schunk}
+\begin{Sinput}
+> #Para datos de exportacion
+> #Ejectuamos el algoritmo apriori con un 77% de soporte y un 90% de confianza
+> #Maxlen indica el maximo numero de transacciones que deseamos obtener
+> itemsets.exportacion <- eclat(tr.exportaciones, parameter = list(supp = 0.77, maxlen = 20))
+\end{Sinput}
+\begin{Soutput}
+Eclat
+
+parameter specification:
+ tidLists support minlen maxlen            target   ext
+    FALSE    0.77      1     20 frequent itemsets FALSE
+
+algorithmic control:
+ sparse sort verbose
+      7   -2    TRUE
+
+Absolute minimum support count: 191 
+
+create itemset ... 
+set transactions ...[985 item(s), 249 transaction(s)] done [0.01s].
+sorting and recoding items ... [7 item(s)] done [0.00s].
+creating bit matrix ... [7 row(s), 249 column(s)] done [0.00s].
+writing  ... [15 set(s)] done [0.00s].
+Creating S4 object  ... done [0.00s].
+\end{Soutput}
+\begin{Sinput}
+> #Para indicar la confianza, utilizamos la funcion ruleInduction()
+> rules.exportacion <- ruleInduction(itemsets.exportacion, tr.exportaciones, confidence = 0.9)
+> inspect(rules.exportacion)
+\end{Sinput}
+\begin{Soutput}
+     lhs                                                                                                                                            
+[1]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.,NUCLEAR REACTORS}                                                                       =>
+[2]  {BOILERS,NUCLEAR REACTORS}                                                                                                                   =>
+[3]  {BOILERS,MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                                                                =>
+[4]  {NUCLEAR REACTORS}                                                                                                                           =>
+[5]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                                                                        =>
+[6]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                                                                        =>
+[7]  {BOILERS}                                                                                                                                    =>
+[8]  {NUCLEAR REACTORS}                                                                                                                           =>
+[9]  {BOILERS}                                                                                                                                    =>
+[10] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS,TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS} =>
+[11] {AND PARTS.,TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                                                            =>
+[12] {AND PARTS.,ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS}                                           =>
+[13] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                                                                       =>
+[14] {AND PARTS.}                                                                                                                                 =>
+[15] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                                                                       =>
+[16] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS}                                                      =>
+[17] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS}                                                      =>
+[18] {AND PARTS.}                                                                                                                                 =>
+     rhs                                                                                     support   confidence lift     itemset
+[1]  {BOILERS}                                                                               0.7710843 1          1.296875 1      
+[2]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                   0.7710843 1          1.296875 1      
+[3]  {NUCLEAR REACTORS}                                                                      0.7710843 1          1.296875 1      
+[4]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                   0.7710843 1          1.296875 2      
+[5]  {NUCLEAR REACTORS}                                                                      0.7710843 1          1.296875 2      
+[6]  {BOILERS}                                                                               0.7710843 1          1.296875 3      
+[7]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                   0.7710843 1          1.296875 3      
+[8]  {BOILERS}                                                                               0.7710843 1          1.296875 4      
+[9]  {NUCLEAR REACTORS}                                                                      0.7710843 1          1.296875 4      
+[10] {AND PARTS.}                                                                            0.7991968 1          1.251256 5      
+[11] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS} 0.7991968 1          1.251256 5      
+[12] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                  0.7991968 1          1.251256 5      
+[13] {AND PARTS.}                                                                            0.7991968 1          1.251256 6      
+[14] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                  0.7991968 1          1.251256 6      
+[15] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS} 0.7991968 1          1.251256 7      
+[16] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                  0.7991968 1          1.251256 7      
+[17] {AND PARTS.}                                                                            0.7991968 1          1.251256 8      
+[18] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS} 0.7991968 1          1.251256 8      
+\end{Soutput}
+\begin{Sinput}
+> #Para datos de importacion
+> #Ejectuamos el algoritmo apriori con un 86% de soporte y un 90% de confianza
+> itemsets.importacion <- eclat(tr.importaciones, parameter = list(supp = 0.86, maxlen = 20))
+\end{Sinput}
+\begin{Soutput}
+Eclat
+
+parameter specification:
+ tidLists support minlen maxlen            target   ext
+    FALSE    0.86      1     20 frequent itemsets FALSE
+
+algorithmic control:
+ sparse sort verbose
+      7   -2    TRUE
+
+Absolute minimum support count: 208 
+
+create itemset ... 
+set transactions ...[528 item(s), 242 transaction(s)] done [0.00s].
+sorting and recoding items ... [6 item(s)] done [0.00s].
+creating bit matrix ... [6 row(s), 242 column(s)] done [0.00s].
+writing  ... [14 set(s)] done [0.00s].
+Creating S4 object  ... done [0.00s].
+\end{Soutput}
+\begin{Sinput}
+> rules.importacion <- ruleInduction(itemsets.importacion, tr.importaciones, confidence = 0.9)
+> inspect(rules.exportacion)
+\end{Sinput}
+\begin{Soutput}
+     lhs                                                                                                                                            
+[1]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.,NUCLEAR REACTORS}                                                                       =>
+[2]  {BOILERS,NUCLEAR REACTORS}                                                                                                                   =>
+[3]  {BOILERS,MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                                                                =>
+[4]  {NUCLEAR REACTORS}                                                                                                                           =>
+[5]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                                                                        =>
+[6]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                                                                        =>
+[7]  {BOILERS}                                                                                                                                    =>
+[8]  {NUCLEAR REACTORS}                                                                                                                           =>
+[9]  {BOILERS}                                                                                                                                    =>
+[10] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS,TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS} =>
+[11] {AND PARTS.,TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                                                            =>
+[12] {AND PARTS.,ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS}                                           =>
+[13] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                                                                       =>
+[14] {AND PARTS.}                                                                                                                                 =>
+[15] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                                                                       =>
+[16] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS}                                                      =>
+[17] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS}                                                      =>
+[18] {AND PARTS.}                                                                                                                                 =>
+     rhs                                                                                     support   confidence lift     itemset
+[1]  {BOILERS}                                                                               0.7710843 1          1.296875 1      
+[2]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                   0.7710843 1          1.296875 1      
+[3]  {NUCLEAR REACTORS}                                                                      0.7710843 1          1.296875 1      
+[4]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                   0.7710843 1          1.296875 2      
+[5]  {NUCLEAR REACTORS}                                                                      0.7710843 1          1.296875 2      
+[6]  {BOILERS}                                                                               0.7710843 1          1.296875 3      
+[7]  {MACHINERY AND MECHANICAL APPLIANCES; PARTS THEREOF.}                                   0.7710843 1          1.296875 3      
+[8]  {BOILERS}                                                                               0.7710843 1          1.296875 4      
+[9]  {NUCLEAR REACTORS}                                                                      0.7710843 1          1.296875 4      
+[10] {AND PARTS.}                                                                            0.7991968 1          1.251256 5      
+[11] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS} 0.7991968 1          1.251256 5      
+[12] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                  0.7991968 1          1.251256 5      
+[13] {AND PARTS.}                                                                            0.7991968 1          1.251256 6      
+[14] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                  0.7991968 1          1.251256 6      
+[15] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS} 0.7991968 1          1.251256 7      
+[16] {TELEVISION IMAGE AND SOUND RECORDERS AND REPRODUCERS}                                  0.7991968 1          1.251256 7      
+[17] {AND PARTS.}                                                                            0.7991968 1          1.251256 8      
+[18] {ELECTRICAL MACHINERY AND EQUIPMENT AND PARTS THEREOF; SOUND RECORDERS AND REPRODUCERS} 0.7991968 1          1.251256 8      
+\end{Soutput}
+\end{Schunk}
+}
+
+Por último, vamos a representar gráficamente las reglas de asociación. Para ello, utilizaremos el paquete \textit{arulesViz}, que sobreescribe la función \textit{plot} permitiendo la representación gráfica de reglas
+de asociación, utilizando el motor \textit{graphViz}: \footnote{\url{http://www.graphviz.org/}}
+
+\begin{figure}[h!]
+\centering
+\includegraphics{G15-P2-032}
+\caption{Plot}
+Nota: para visualizar mejor el grafo anterior se recomienda ejecutar el siguiente comando:
+\hfil \textit{plot(association.rules.exportaciones, method = "graph", engine = "htmlwidget")}. \par
+
+Al ejecutar se abrirá una extensión \textit{HTML} con el grafo anterior, con la novedad de poder observar cada regla al acercar el ratón a cada nodo del grafo.
+\end{figure}
+\end{document}
